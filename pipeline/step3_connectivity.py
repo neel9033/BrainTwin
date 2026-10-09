@@ -12,6 +12,8 @@ Run:    python pipeline/step3_connectivity.py
 
 import json
 
+import config  # first: stops early with a clear message if the wrong Python is used
+
 import matplotlib
 
 matplotlib.use("Agg")  # draw to files only, no window
@@ -19,8 +21,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap
-
-import config
 
 # Diverging colors for the heatmap: blue = negative, gray = zero, red = positive
 DIVERGING_COLORS = ["#104281", "#2a78d6", "#f0efec", "#e34948", "#9e1b1f"]

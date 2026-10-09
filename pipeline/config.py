@@ -5,9 +5,35 @@ Every step imports its paths from here, so the raw-data location, subject,
 and fMRI run only need to change in one place.
 """
 
+import importlib.util
+import sys
 from pathlib import Path
 
-import pandas as pd
+# Python inside the braintwin conda env (used in the error message below)
+BRAINTWIN_PYTHON = "/Users/neelrajan/anaconda3/envs/braintwin/bin/python"
+REQUIRED_PACKAGES = ["nibabel", "numpy", "pandas", "networkx", "scipy", "matplotlib"]
+
+
+def check_python_environment():
+    """
+    Stop with a clear message if this Python is missing the pipeline's packages
+    (usually because the braintwin conda env isn't active).
+    Input: none. Output: none; exits the program if packages are missing.
+    """
+    missing = [name for name in REQUIRED_PACKAGES if importlib.util.find_spec(name) is None]
+    if missing:
+        script = sys.argv[0] or "pipeline/<step>.py"
+        print(f"This Python ({sys.executable}) is missing: {', '.join(missing)}\n"
+              f"Run this step with the braintwin env instead:\n\n"
+              f"    {BRAINTWIN_PYTHON} {script}\n\n"
+              f"or, in your own terminal, first run:  conda activate braintwin",
+              file=sys.stderr)
+        sys.exit(1)
+
+
+check_python_environment()
+
+import pandas as pd  # noqa: E402  (must come after the environment check)
 
 # ---------------------------------------------------------------------------
 # Folders

@@ -11,10 +11,11 @@ Column i of region_timeseries.npy is the region in row i of regions.csv
 Run:    python pipeline/step2_parcellate.py
 """
 
+import config  # first: stops early with a clear message if the wrong Python is used
+
 import numpy as np
 import pandas as pd
 
-import config
 from brain_io import get_cortex_columns, load_atlas, load_fmri, parse_region_name
 
 

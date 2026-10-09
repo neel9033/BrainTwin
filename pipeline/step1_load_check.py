@@ -10,9 +10,10 @@ Run:    python pipeline/step1_load_check.py
 
 import json
 
+import config  # first: stops early with a clear message if the wrong Python is used
+
 import numpy as np
 
-import config
 from brain_io import get_cortex_columns, load_atlas, load_fmri, load_mesh, parse_region_name
 
 
