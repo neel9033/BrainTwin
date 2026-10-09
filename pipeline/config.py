@@ -61,6 +61,10 @@ RUN_NAME = "rfMRI_REST1_LR"  # other options: rfMRI_REST1_RL, rfMRI_REST2_LR, rf
 # HCP-Young Adult resting-state repetition time (seconds between fMRI frames)
 TR_SECONDS = 0.72
 
+# Graph measures use only the strongest connections: this fraction of all
+# possible region pairs (0.10 = 10% -> 1,990 of 19,900 pairs for 200 regions)
+GRAPH_DENSITY = 0.10
+
 # ---------------------------------------------------------------------------
 # Atlas
 # ---------------------------------------------------------------------------
