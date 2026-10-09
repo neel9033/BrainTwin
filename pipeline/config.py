@@ -65,6 +65,13 @@ TR_SECONDS = 0.72
 # possible region pairs (0.10 = 10% -> 1,990 of 19,900 pairs for 200 regions)
 GRAPH_DENSITY = 0.10
 
+# Website export: include every connection with r above this (the site's
+# slider filters further). 0.10 keeps ~7,750 of 19,900 pairs and still gives
+# every region at least one connection.
+EXPORT_EDGE_MIN_R = 0.10
+# How many strongest partners (from the full matrix) to list per region
+EXPORT_TOP_CONNECTIONS = 10
+
 # ---------------------------------------------------------------------------
 # Atlas
 # ---------------------------------------------------------------------------
