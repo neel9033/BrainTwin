@@ -50,6 +50,28 @@ ATLAS_URL_BASE = (
 # Number of vertices per hemisphere on the fs_LR 32k surface
 VERTICES_PER_HEMISPHERE = 32492
 
+# The 7 Yeo networks in the atlas's own order, with their standard colors
+# and readable names. Used for sorting, plots, and the website legend.
+NETWORK_ORDER = ["Vis", "SomMot", "DorsAttn", "SalVentAttn", "Limbic", "Cont", "Default"]
+NETWORK_COLORS = {
+    "Vis": "#781286",
+    "SomMot": "#4682b4",
+    "DorsAttn": "#00760e",
+    "SalVentAttn": "#c43afa",
+    "Limbic": "#dcf8a4",
+    "Cont": "#e69422",
+    "Default": "#cd3e4e",
+}
+NETWORK_FULL_NAMES = {
+    "Vis": "Visual",
+    "SomMot": "Somatomotor",
+    "DorsAttn": "Dorsal attention",
+    "SalVentAttn": "Salience / ventral attention",
+    "Limbic": "Limbic",
+    "Cont": "Frontoparietal control",
+    "Default": "Default mode",
+}
+
 
 def get_hcp_id(subject_id=SUBJECT_ID):
     """
