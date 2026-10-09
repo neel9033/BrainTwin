@@ -1,0 +1,94 @@
+"""
+Central settings for the BrainTwin pipeline.
+
+Every step imports its paths from here, so the raw-data location, subject,
+and fMRI run only need to change in one place.
+"""
+
+from pathlib import Path
+
+import pandas as pd
+
+# ---------------------------------------------------------------------------
+# Folders
+# ---------------------------------------------------------------------------
+
+# Repo root = the folder that contains pipeline/, data/, web/
+REPO_DIR = Path(__file__).resolve().parent.parent
+
+# Raw HCP download (outside the repo; never commit it)
+RAW_DATA_DIR = Path("/Users/neelrajan/Downloads")
+
+DATA_DIR = REPO_DIR / "data"
+ATLAS_DIR = DATA_DIR / "atlas"
+DERIVED_DIR = DATA_DIR / "derived"
+WEB_DATA_DIR = REPO_DIR / "web" / "public" / "data"
+SUBJECTS_CSV = DATA_DIR / "subjects.csv"
+
+# ---------------------------------------------------------------------------
+# What we are processing right now
+# ---------------------------------------------------------------------------
+
+SUBJECT_ID = "subject_001"
+RUN_NAME = "rfMRI_REST1_LR"  # other options: rfMRI_REST1_RL, rfMRI_REST2_LR, rfMRI_REST2_RL
+
+# HCP-Young Adult resting-state repetition time (seconds between fMRI frames)
+TR_SECONDS = 0.72
+
+# ---------------------------------------------------------------------------
+# Atlas
+# ---------------------------------------------------------------------------
+
+ATLAS_NAME = "Schaefer2018_200Parcels_7Networks_order"
+ATLAS_DLABEL = ATLAS_DIR / f"{ATLAS_NAME}.dlabel.nii"
+ATLAS_INFO_TXT = ATLAS_DIR / f"{ATLAS_NAME}_info.txt"
+ATLAS_URL_BASE = (
+    "https://raw.githubusercontent.com/ThomasYeoLab/CBIG/master/stable_projects/"
+    "brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/HCP/fslr32k/cifti/"
+)
+
+# Number of vertices per hemisphere on the fs_LR 32k surface
+VERTICES_PER_HEMISPHERE = 32492
+
+
+def get_hcp_id(subject_id=SUBJECT_ID):
+    """
+    Look up the HCP subject number for one of our subject ids.
+    Input: subject_id like "subject_001".
+    Output: HCP id as a string, e.g. "125525".
+    """
+    subjects = pd.read_csv(SUBJECTS_CSV, dtype=str)
+    match = subjects.loc[subjects["subject_id"] == subject_id, "hcp_id"]
+    if match.empty:
+        raise ValueError(f"{subject_id} is not listed in {SUBJECTS_CSV}")
+    return match.iloc[0]
+
+
+def get_raw_paths(subject_id=SUBJECT_ID, run_name=RUN_NAME, surface="midthickness"):
+    """
+    Build the paths to all raw HCP files we use for one subject and run.
+    Inputs: subject_id, run_name (e.g. "rfMRI_REST1_LR"),
+            surface ("midthickness", "pial", or "inflated").
+    Output: dict of name -> Path.
+    """
+    hcp_id = get_hcp_id(subject_id)
+    subject_dir = RAW_DATA_DIR / hcp_id / "MNINonLinear"
+    surface_dir = subject_dir / "fsaverage_LR32k"
+    run_dir = subject_dir / "Results" / run_name
+
+    return {
+        "mesh_L": surface_dir / f"{hcp_id}.L.{surface}_MSMAll.32k_fs_LR.surf.gii",
+        "mesh_R": surface_dir / f"{hcp_id}.R.{surface}_MSMAll.32k_fs_LR.surf.gii",
+        "fmri": run_dir / f"{run_name}_Atlas_MSMAll_hp2000_clean_rclean_tclean.dtseries.nii",
+        "motion": run_dir / "Movement_RelativeRMS_mean.txt",
+    }
+
+
+def get_derived_dir(subject_id=SUBJECT_ID):
+    """
+    Folder where pipeline steps save their outputs for one subject.
+    Input: subject_id. Output: Path (created if missing).
+    """
+    folder = DERIVED_DIR / subject_id
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
