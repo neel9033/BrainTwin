@@ -1,0 +1,18 @@
+# brain imaging files (HCP data, never upload)
+*.nii
+*.nii.gz
+*.gii
+data/derived/
+data/atlas/
+web/public/data/
+
+# Python
+__pycache__/
+*.pyc
+
+# JavaScript
+node_modules/
+dist/
+
+# Mac
+.DS_Store
