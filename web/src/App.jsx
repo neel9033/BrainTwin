@@ -5,6 +5,7 @@ import BrainScene from './components/BrainScene.jsx'
 import ControlPanel from './components/ControlPanel.jsx'
 import SidePanel from './components/SidePanel.jsx'
 import ViewBar from './components/ViewBar.jsx'
+import IntroPanel from './components/IntroPanel.jsx'
 
 const SUBJECT_ID = 'subject_001'
 
@@ -15,6 +16,27 @@ const DEFAULT_SETTINGS = {
   showNetwork: true,
   edgeThreshold: 0.5,
   nodeSizeBy: 'strength',
+}
+
+const INTRO_SEEN_KEY = 'braintwin-intro-seen'
+
+// Has this browser already dismissed the intro? (Storage can be blocked, so be careful.)
+// Output: true / false.
+function hasSeenIntro() {
+  try {
+    return window.localStorage.getItem(INTRO_SEEN_KEY) === 'yes'
+  } catch {
+    return false
+  }
+}
+
+// Remember that the intro was dismissed, if the browser allows it.
+function rememberIntroSeen() {
+  try {
+    window.localStorage.setItem(INTRO_SEEN_KEY, 'yes')
+  } catch {
+    // storage blocked: the intro will simply show again next time
+  }
 }
 
 // Rank every region for each statistic (1 = highest; ties share a rank).
@@ -59,6 +81,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [notice, setNotice] = useState(null)
   const [autoRotate, setAutoRotate] = useState(true)
+  const [showIntro, setShowIntro] = useState(() => !hasSeenIntro())
   const [viewRequest, setViewRequest] = useState(null) // { name, id } for the camera presets
 
   useEffect(() => {
@@ -86,7 +109,7 @@ export default function App() {
   // Hide the "medial wall" notice after a few seconds
   useEffect(() => {
     if (!notice) return undefined
-    const timer = setTimeout(() => setNotice(null), 2500)
+    const timer = setTimeout(() => setNotice(null), 4000)
     return () => clearTimeout(timer)
   }, [notice])
 
@@ -155,7 +178,7 @@ export default function App() {
   function handleSurfaceClick(regionId) {
     if (regionId === 0) {
       setSelectedId(null)
-      setNotice('That spot is the medial wall, which has no region.')
+      setNotice("That spot is the inner wall between the two halves of the brain, which isn't part of any region.")
     } else {
       setSelectedId(regionId)
     }
@@ -214,6 +237,7 @@ export default function App() {
         regionCounts={lookups.regionCounts}
         shownEdgeCount={selectedId != null ? selectedEdges.length : visibleEdges.length}
         graphThreshold={lookups.graphThreshold}
+        onOpenIntro={() => setShowIntro(true)}
       />
 
       {selectedNode && (
@@ -231,6 +255,17 @@ export default function App() {
       )}
 
       {notice && <div className="notice">{notice}</div>}
+
+      {showIntro && (
+        <IntroPanel
+          subject={data.subject}
+          networkColors={lookups.networkColors}
+          onClose={() => {
+            setShowIntro(false)
+            rememberIntroSeen()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,17 +1,13 @@
 // Small helpers for showing regions and stats in plain language.
 
-// Graph statistics shown in the side panel, with a plain-language explanation.
+// Graph statistics shown in the side panel, in display order, with how many decimals
+// to show. Their plain-language labels and sentences live in explanations.js.
 export const STATS = [
-  { key: 'degree', label: 'Degree', digits: 0,
-    help: 'How many connections this region has in the strongest-10% graph.' },
-  { key: 'strength', label: 'Strength', digits: 2,
-    help: 'Sum of the correlation values of those connections.' },
-  { key: 'betweenness', label: 'Betweenness', digits: 3,
-    help: 'How often this region lies on the shortest path between two other regions (a "bridge" score).' },
-  { key: 'clustering', label: 'Clustering', digits: 3,
-    help: "How strongly this region's partners are also connected to each other." },
-  { key: 'eigenvector', label: 'Eigenvector', digits: 3,
-    help: 'High when a region is connected to other well-connected regions.' },
+  { key: 'degree', digits: 0 },
+  { key: 'strength', digits: 2 },
+  { key: 'betweenness', digits: 3 },
+  { key: 'clustering', digits: 3 },
+  { key: 'eigenvector', digits: 3 },
 ]
 
 // Readable title for a region.
