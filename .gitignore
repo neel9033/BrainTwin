@@ -17,3 +17,4 @@ dist/
 # Mac
 .DS_Store
 CLAUDE.md
+.hcp_credentials
