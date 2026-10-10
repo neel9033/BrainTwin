@@ -1,3 +1,4 @@
+import CollapsibleSection from './CollapsibleSection.jsx'
 import InfoTip from './InfoTip.jsx'
 import {
   GLOSSARY, NETWORK_DESCRIPTIONS, SECONDS_PER_TIMEPOINT, describeModularity, describeMotion,
@@ -27,7 +28,7 @@ export default function ControlPanel({
             ?
           </button>
         </div>
-        <p>One real person's brain, at rest</p>
+        <p className="subtitle">One real person's brain, at rest</p>
         <p className="muted small">
           Human Connectome Project · subject {subject.hcp_id} · {scanMinutes}-minute resting scan
         </p>
@@ -48,8 +49,7 @@ export default function ControlPanel({
         </p>
       </header>
 
-      <section>
-        <h2>Brain surface</h2>
+      <CollapsibleSection title="Brain surface">
         <label className="switch-row">
           <input type="checkbox" checked={settings.showSurface}
             onChange={(event) => updateSetting('showSurface', event.target.checked)} />
@@ -70,10 +70,9 @@ export default function ControlPanel({
             disabled={!settings.showSurface}
             onChange={(event) => updateSetting('surfaceOpacity', Number(event.target.value))} />
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section>
-        <h2>Regions and connections</h2>
+      <CollapsibleSection title="Regions and connections">
         <label className="switch-row">
           <input type="checkbox" checked={settings.showNetwork}
             onChange={(event) => updateSetting('showNetwork', event.target.checked)} />
@@ -110,17 +109,18 @@ export default function ControlPanel({
             <option value="eigenvector">Influence</option>
           </select>
         </label>
-      </section>
+      </CollapsibleSection>
 
-      <section>
-        <div className="section-title-row">
-          <h2>Brain networks</h2>
-          <span className="small">
+      <CollapsibleSection
+        title="Brain networks"
+        actions={
+          <>
             <button type="button" className="link-button" onClick={() => setAllNetworksVisible(true)}>show all</button>
-            {' · '}
+            <span aria-hidden="true"> · </span>
             <button type="button" className="link-button" onClick={() => setAllNetworksVisible(false)}>hide all</button>
-          </span>
-        </div>
+          </>
+        }
+      >
         <p className="muted small">Tick a network to show or hide its regions.</p>
         <ul className="legend">
           {networks.map((network) => {
@@ -141,7 +141,7 @@ export default function ControlPanel({
             )
           })}
         </ul>
-      </section>
+      </CollapsibleSection>
 
       <footer className="muted small help">
         Drag to turn the brain · scroll to zoom · right-drag to move it · use the view buttons at the bottom ·

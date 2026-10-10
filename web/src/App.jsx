@@ -6,6 +6,7 @@ import ControlPanel from './components/ControlPanel.jsx'
 import SidePanel from './components/SidePanel.jsx'
 import ViewBar from './components/ViewBar.jsx'
 import IntroPanel from './components/IntroPanel.jsx'
+import LoadingScreen from './components/LoadingScreen.jsx'
 
 const SUBJECT_ID = 'subject_001'
 
@@ -83,9 +84,11 @@ export default function App() {
   const [autoRotate, setAutoRotate] = useState(true)
   const [showIntro, setShowIntro] = useState(() => !hasSeenIntro())
   const [viewRequest, setViewRequest] = useState(null) // { name, id } for the camera presets
+  const [loadProgress, setLoadProgress] = useState({ fraction: 0, label: 'Starting' })
+  const [sceneReady, setSceneReady] = useState(false) // true once the 3D view has drawn a frame
 
   useEffect(() => {
-    loadSubject(SUBJECT_ID).then(setData).catch((error) => setLoadError(error.message))
+    loadSubject(SUBJECT_ID, setLoadProgress).then(setData).catch((error) => setLoadError(error.message))
   }, [])
 
   // Esc clears the selection
@@ -194,8 +197,8 @@ export default function App() {
   }
   if (!data) {
     return (
-      <div className="status-screen">
-        <p className="muted">Loading {SUBJECT_ID}…</p>
+      <div className="app">
+        <LoadingScreen progress={loadProgress} isDone={false} subjectId={SUBJECT_ID} />
       </div>
     )
   }
@@ -221,6 +224,7 @@ export default function App() {
           viewRequest={viewRequest}
           autoRotate={autoRotate}
           onUserInteract={() => setAutoRotate(false)}
+          onFirstFrame={() => setSceneReady(true)}
         />
       </div>
 
@@ -256,7 +260,9 @@ export default function App() {
 
       {notice && <div className="notice">{notice}</div>}
 
-      {showIntro && (
+      <LoadingScreen progress={loadProgress} isDone={sceneReady} subjectId={SUBJECT_ID} />
+
+      {showIntro && sceneReady && (
         <IntroPanel
           subject={data.subject}
           networkColors={lookups.networkColors}

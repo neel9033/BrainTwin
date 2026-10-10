@@ -2,8 +2,8 @@ import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { hexToRgb, mixRgb } from '../utils/regions.js'
 
-const SURFACE_GRAY = hexToRgb('#b4b1a9')
-const MEDIAL_WALL_GRAY = hexToRgb('#6b6964')
+const SURFACE_GRAY = hexToRgb('#b3b8c0') // slightly cool, to suit the blue-grey background
+const MEDIAL_WALL_GRAY = hexToRgb('#646a74')
 
 // Build a three.js geometry from the exported mesh arrays.
 // Input: mesh { points, triangles }. Output: BufferGeometry with normals and a color slot.
@@ -75,7 +75,7 @@ export default function BrainSurface({
 
   const isSeeThrough = opacity < 1
   return (
-    <mesh geometry={geometry} onClick={handleClick} renderOrder={isSeeThrough ? 2 : 0}>
+    <mesh geometry={geometry} onClick={handleClick} renderOrder={isSeeThrough ? 2 : 0} receiveShadow>
       <meshStandardMaterial
         key={isSeeThrough ? 'see-through' : 'solid'} // rebuild the material when switching modes
         vertexColors

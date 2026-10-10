@@ -20,6 +20,7 @@ const BASE_NODE_RADIUS = 2.2 // mm
 const ARC_SEGMENTS = 10 // straight pieces per curved edge
 const ARC_BULGE = 0.22 // how far an arc bows out, as a fraction of its length
 const HOVER_GROWTH = 1.35
+const GLOW = 0.22 // resting emissive strength of a node
 const SELECTED_GROWTH = 1.5
 
 // Work out each node's sphere radius from the chosen statistic.
@@ -119,6 +120,8 @@ function NodeSphere({ node, geometry, color, radius, isSelected, isHovered, isFa
       geometry={geometry}
       position={[node.x, node.y, node.z]}
       scale={0.001} // starts tiny and grows in on load
+      castShadow={!isFaded}
+      receiveShadow
       onClick={(event) => {
         if (event.delta > 4) return // drag, not click
         event.stopPropagation()
@@ -133,9 +136,11 @@ function NodeSphere({ node, geometry, color, radius, isSelected, isHovered, isFa
       <meshStandardMaterial
         key={isFaded ? 'faded' : 'solid'} // rebuild the material when transparency changes
         color={color}
-        emissive={isSelected || isHovered ? '#ffffff' : '#000000'}
-        emissiveIntensity={isSelected ? 0.35 : isHovered ? 0.2 : 0}
-        roughness={0.45}
+        // A soft glow in the node's own color; brighter when hovered or selected
+        emissive={color}
+        emissiveIntensity={isFaded ? 0 : isSelected ? 0.55 : isHovered ? 0.45 : GLOW}
+        roughness={0.35}
+        metalness={0.05}
         transparent={isFaded}
         opacity={isFaded ? FADED_NODE_OPACITY : 1}
         depthWrite={!isFaded}

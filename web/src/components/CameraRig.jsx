@@ -13,6 +13,9 @@ export const VIEW_DIRECTIONS = {
   Back: [0, -1, 0],
 }
 const MOVE_SECONDS = 0.7
+// How far behind the brain's center the fog reaches full strength. The brain is about
+// 140 mm across, so the far side fades noticeably but never vanishes.
+const FOG_DEPTH_MM = 260
 
 // Where the camera should sit for a preset view.
 // Inputs: view name, brain center [x,y,z], distance in mm. Output: THREE.Vector3.
@@ -22,12 +25,13 @@ export function viewPosition(viewName, center, distance) {
 }
 
 // Moves the camera smoothly to a preset view whenever viewRequest changes,
-// and keeps a light shining from the camera so every side of the brain is lit.
+// keeps a light shining from the camera so every side of the brain is lit, and keeps
+// the depth fog wrapped around the brain as you zoom.
 // Inputs: viewRequest { name, id } (id changes on every button press so the same
 //         view can be requested twice), center [x,y,z], distance (mm).
 // Output: a light; the camera movement happens in useFrame.
 export default function CameraRig({ viewRequest, center, distance }) {
-  const { camera, controls } = useThree()
+  const { camera, controls, scene } = useThree()
   const lightRef = useRef()
   const move = useRef(null) // { from, to, elapsed } while a move is running
 
@@ -73,7 +77,15 @@ export default function CameraRig({ viewRequest, center, distance }) {
       if (progress === 1) move.current = null
     }
     if (lightRef.current) lightRef.current.position.copy(camera.position)
+
+    // Depth fog follows the zoom: it starts just in front of the brain's center and is
+    // strongest at the brain's far side, so the back of the brain recedes at any distance.
+    if (scene.fog && controls) {
+      const distanceToCenter = camera.position.distanceTo(controls.target)
+      scene.fog.near = distanceToCenter - 30
+      scene.fog.far = distanceToCenter + FOG_DEPTH_MM
+    }
   })
 
-  return <directionalLight ref={lightRef} intensity={1.2} />
+  return <directionalLight ref={lightRef} intensity={0.55} />
 }

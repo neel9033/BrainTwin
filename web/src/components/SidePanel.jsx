@@ -1,3 +1,4 @@
+import CollapsibleSection from './CollapsibleSection.jsx'
 import InfoTip from './InfoTip.jsx'
 import { STATS, hemisphereName, regionTitle } from '../utils/regions.js'
 import { GLOSSARY, NETWORK_DESCRIPTIONS, describeStat } from '../utils/explanations.js'
@@ -33,8 +34,7 @@ export default function SidePanel({
         </button>
       </header>
 
-      <section>
-        <h3>How it fits into the network</h3>
+      <CollapsibleSection title="How it fits into the network">
         {!hasLinks && (
           <p className="note small">
             None of this region's connections are among the strongest 10%, so the measures below are all zero.
@@ -69,13 +69,16 @@ export default function SidePanel({
           Measured on the strongest 10% of connections. # is the rank among all {regionTotal} regions (#1 =
           highest); the bar shows the same thing.
         </p>
-      </section>
+      </CollapsibleSection>
 
-      <section>
-        <h3 className="label-with-tip">
-          Regions most in sync with this one
-          <InfoTip label="connection strength" text={GLOSSARY.connectionStrength} />
-        </h3>
+      <CollapsibleSection
+        title={
+          <>
+            Regions most in sync with this one
+            <InfoTip label="connection strength" text={GLOSSARY.connectionStrength} />
+          </>
+        }
+      >
         <ol className="connection-list">
           {node.top_connections.map((connection) => {
             const partner = nodesById.get(connection.id)
@@ -102,7 +105,7 @@ export default function SidePanel({
           Higher numbers mean their activity rose and fell together more closely (1 = perfectly in step). Grey
           numbers are below the strongest-10% cutoff. Click a region to jump to it.
         </p>
-      </section>
+      </CollapsibleSection>
     </aside>
   )
 }
