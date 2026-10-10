@@ -1,18 +1,57 @@
 import CollapsibleSection from './CollapsibleSection.jsx'
 import InfoTip from './InfoTip.jsx'
 import { STATS, hemisphereName, regionTitle } from '../utils/regions.js'
-import { GLOSSARY, NETWORK_DESCRIPTIONS, describeStat } from '../utils/explanations.js'
+import { GLOSSARY, NETWORK_DESCRIPTIONS, describeStability, describeStat } from '../utils/explanations.js'
+
+// How stable one region is between the two scans: a sentence, then its strength in
+// each scan as bars on a shared scale.
+// Inputs: stability (this region's entry in comparison.json), comparison, runLabel
+//         (scan on screen), regionTotal. Output: a collapsible section.
+function StabilitySection({ stability, comparison, runLabel, regionTotal }) {
+  const labels = comparison.run_labels
+  // Bars share one scale: the strongest region in either scan fills the bar
+  const largest = Math.max(
+    ...Object.values(comparison.regions).flatMap((region) => labels.map((label) => region.strength[label])),
+  )
+  const badge = { 'most consistent': 'is-good', 'least consistent': 'is-warn' }[stability.consistency]
+  return (
+    <CollapsibleSection title="Same in both scans?">
+      <p className="stat-sentence">
+        {badge && <span className={`badge ${badge}`}>{stability.consistency}</span>}
+        {describeStability(stability, labels, regionTotal)}
+      </p>
+      <ul className="run-bars">
+        {labels.map((label) => (
+          <li key={label} className={label === runLabel ? 'is-current' : ''}>
+            <span className="run-bars-label">{label}</span>
+            <span className="rank-bar" aria-hidden="true">
+              <span style={{ width: `${(stability.strength[label] / largest) * 100}%` }} />
+            </span>
+            <span className="number">{stability.strength[label].toFixed(1)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="muted small">
+        Total link strength in each scan (strongest 10% of connections). Regions are compared by how far their
+        rank moved, so one scan being stronger overall doesn't count against them.
+      </p>
+    </CollapsibleSection>
+  )
+}
 
 // Right panel with details for the selected region. Each statistic is explained in
 // a plain sentence first, with the number and its rank underneath.
 // Inputs: node (selected region), nodesById, networkNames, networkColors,
-//         ranks (stat -> Map id -> rank), regionTotal, graphThreshold,
+//         ranks (stat -> Map id -> rank), regionTotal, graphThreshold, runLabel (scan on
+//         screen), comparison (comparison.json contents, or undefined),
 //         onSelect(id) to jump to a partner, onClose().
 // Output: an <aside> element.
 export default function SidePanel({
-  node, nodesById, networkNames, networkColors, ranks, regionTotal, graphThreshold, onSelect, onClose,
+  node, nodesById, networkNames, networkColors, ranks, regionTotal, graphThreshold, runLabel, comparison,
+  onSelect, onClose,
 }) {
   const hasLinks = node.stats.degree > 0
+  const stability = comparison?.regions[node.id]
   const strongestWeight = node.top_connections[0]?.weight || 1
 
   return (
@@ -33,6 +72,15 @@ export default function SidePanel({
           ×
         </button>
       </header>
+
+      {stability && (
+        <StabilitySection
+          stability={stability}
+          comparison={comparison}
+          runLabel={runLabel}
+          regionTotal={regionTotal}
+        />
+      )}
 
       <CollapsibleSection title="How it fits into the network">
         {!hasLinks && (

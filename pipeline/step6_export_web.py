@@ -1,15 +1,24 @@
 """
 Step 6 - Write the files the website loads.
 
-Reads:  raw midthickness meshes + Schaefer atlas, and from data/derived/<subject>/:
-        regions.csv, node_positions.csv, region_stats.csv, connectivity.npy,
-        graph_edges.csv, graph_summary.json (steps 2-5).
+Exports every run in config.RUNS_TO_COMPARE that has been processed (steps 2-5),
+plus the run comparison from step 7 if it exists. The default run comes first
+and is what the website shows on load.
+
+Reads:  raw midthickness meshes + Schaefer atlas;
+        data/derived/<subject>/node_positions.csv (step 4, same for every run);
+        per run, data/derived/<subject>/<run>/: regions.csv, region_stats.csv,
+        connectivity.npy, graph_edges.csv, graph_summary.json (steps 2-5);
+        data/derived/<subject>/run_comparison.json + region_stability.csv (step 7).
 Writes: web/public/data/<subject>/
           mesh_L_points.bin, mesh_R_points.bin       Float32, x y z per vertex (mm)
           mesh_L_triangles.bin, mesh_R_triangles.bin Uint32, 3 vertex indices per triangle
           mesh_L_region.bin, mesh_R_region.bin       Uint16, region id per vertex (0 = medial wall)
-          graph.json    networks, nodes (position + all stats + top connections), edges
-          subject.json  ids, run, counts, QC, graph summary, and how to read each file
+          graph_<RUN>.json   per run: networks, nodes (position + stats + top connections), edges
+          comparison.json    reproducibility numbers + per-region stability (if step 7 was run)
+          comparison_edges.bin  Float32 (pairs x 2): every region pair's r in run 1 and run 2,
+                                pairs in upper-triangle order of region ids (1-2, 1-3, ... 199-200)
+          subject.json       ids, runs, counts, QC, graph summaries, and how to read each file
 
 All binary files are raw little-endian arrays with no header: the website
 reads them with e.g. new Float32Array(buffer). Shapes are listed in subject.json.
@@ -94,7 +103,7 @@ def build_graph_json(output_dir_derived):
     Output: (graph dict, number of exported edges, how many of those are in the density graph)
     """
     regions = pd.read_csv(output_dir_derived / "regions.csv")
-    node_positions = pd.read_csv(output_dir_derived / "node_positions.csv")
+    node_positions = pd.read_csv(config.get_subject_dir() / "node_positions.csv")  # same for every run
     region_stats = pd.read_csv(output_dir_derived / "region_stats.csv")
     correlation = np.load(output_dir_derived / "connectivity.npy")
     graph_edges = pd.read_csv(output_dir_derived / "graph_edges.csv")
@@ -197,46 +206,141 @@ def check_export(output_dir, graph, mesh_counts):
     return all_good and edges_valid
 
 
-def main():
-    """
-    Export meshes, graph and subject info for the website, check them,
-    and print the file sizes.
-    """
-    derived_dir = config.get_derived_dir()
-    output_dir = config.WEB_DATA_DIR / config.SUBJECT_ID
-    output_dir.mkdir(parents=True, exist_ok=True)
+def run_label(run_name):
+    """Input: "rfMRI_REST1_LR". Output: "REST1" (short name used in file names and the site)."""
+    return run_name.replace("rfMRI_", "").split("_")[0]
 
-    mesh_files, mesh_counts, bounding_box = export_meshes(output_dir)
+
+def export_run(run_name, output_dir):
+    """
+    Write one run's graph file and collect its summary for subject.json.
+    Inputs: run_name, output folder. Output: (run info dict, graph dict, file info).
+    """
+    derived_dir = config.get_derived_dir(run_name=run_name)
+    label = run_label(run_name)
     graph, n_edges, n_graph_edges = build_graph_json(derived_dir)
-    graph_file = write_json(graph, output_dir / "graph.json")
+    graph_file = write_json(graph, output_dir / f"graph_{label}.json")
     graph_summary = json.loads((derived_dir / "graph_summary.json").read_text())
-
-    subject = {
-        "subject_id": config.SUBJECT_ID,
-        "hcp_id": config.get_hcp_id(),
-        "run_name": config.RUN_NAME,
-        "atlas": config.ATLAS_NAME,
-        "surface": "midthickness_MSMAll",
-        "coordinate_space": "MNINonLinear (mm)",
-        "bounding_box_mm": bounding_box,
-        "counts": {
-            "regions": len(graph["nodes"]),
-            "mesh": mesh_counts,
-            "timepoints": int(np.load(derived_dir / "region_timeseries.npy", mmap_mode="r").shape[0]),
-            "edges_exported": n_edges,
-            "edges_in_graph": n_graph_edges,
-        },
+    run_info = {
+        "run_name": run_name,
+        "label": label,
+        "graph_file": graph_file["file"],
+        "timepoints": int(np.load(derived_dir / "region_timeseries.npy", mmap_mode="r").shape[0]),
+        "edges_exported": n_edges,
+        "edges_in_graph": n_graph_edges,
         "qc": graph_summary["qc"],
         "graph_summary": {key: graph_summary[key] for key in [
             "density", "average_clustering", "modularity_schaefer_networks", "connected_pieces",
             "isolated_regions", "fraction_edges_within_network", "mean_strength_by_network_and_hemisphere"]},
-        "files": mesh_files + [graph_file],
+    }
+    return run_info, graph, graph_file
+
+
+def export_comparison(runs, output_dir):
+    """
+    Write the reproducibility results (from step 7) for the website, if they exist.
+    Inputs: list of run names that were exported, output folder.
+    Output: (comparison file info list, comparison summary for subject.json) or ([], None).
+    """
+    subject_dir = config.get_subject_dir()
+    comparison_path = subject_dir / "run_comparison.json"
+    if not comparison_path.exists():
+        print("No run_comparison.json yet (run step 7) - exporting without the comparison.")
+        return [], None
+    comparison = json.loads(comparison_path.read_text())
+    if not all(run_name in runs for run_name in comparison["runs"]):
+        print("run_comparison.json compares runs that weren't exported - skipping the comparison.")
+        return [], None
+
+    labels = comparison["run_labels"]
+    stability = pd.read_csv(subject_dir / "region_stability.csv")
+    regions = {
+        int(row.id): {
+            "strength": {label: round(float(getattr(row, f"strength_{label}")), 3) for label in labels},
+            "rank": {label: int(getattr(row, f"rank_{label}")) for label in labels},
+            "rank_change": int(row.rank_change),
+            "consistency": row.consistency,
+        }
+        for row in stability.itertuples()
+    }
+    web_comparison = {
+        "runs": comparison["runs"],
+        "run_labels": labels,
+        "matrix_correlation": round(comparison["matrix_correlation"], 4),
+        "agreement": comparison["agreement"],
+        "agreement_sentence": comparison["agreement_sentence"],
+        "strength_correlation": round(comparison["strength_correlation"], 4),
+        "strength_correlation_all_positive": round(comparison["strength_correlation_all_positive"], 4),
+        "top10_edge_overlap": round(comparison["top10_edge_overlap"], 4),
+        "head_motion_mm": comparison["head_motion_mm"],
+        "modularity": comparison["modularity"],
+        "consistency_rule": comparison["consistency_rule"],
+        "regions": regions,
+    }
+    comparison_file = write_json(web_comparison, output_dir / "comparison.json")
+
+    # Every region pair's r in both runs, for the scatter plot (upper triangle, region-id order)
+    matrices = [np.load(config.get_derived_dir(run_name=run_name) / "connectivity.npy")
+                for run_name in comparison["runs"]]
+    rows, columns = np.triu_indices(len(matrices[0]), k=1)
+    pair_values = np.column_stack([matrix[rows, columns] for matrix in matrices])
+    edges_file = write_binary(pair_values, output_dir / "comparison_edges.bin", "<f4")
+
+    summary = {
+        "file": comparison_file["file"],
+        "edges_file": edges_file["file"],
+        "run_labels": labels,
+        "matrix_correlation": web_comparison["matrix_correlation"],
+    }
+    return [comparison_file, edges_file], summary
+
+
+def main():
+    """
+    Export meshes, every processed run's graph, the run comparison, and subject
+    info for the website; check them, and print the file sizes.
+    """
+    output_dir = config.WEB_DATA_DIR / config.SUBJECT_ID
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stale_file = output_dir / "graph.json"  # single-run layout from before runs were added
+    if stale_file.exists():
+        stale_file.unlink()
+
+    # Default run first, then any other processed runs
+    runs = [config.RUN_NAME] + [run for run in config.RUNS_TO_COMPARE if run != config.RUN_NAME]
+    runs = [run for run in runs if (config.get_derived_dir(run_name=run) / "graph_summary.json").exists()]
+    print(f"Exporting runs: {', '.join(runs)}\n")
+
+    mesh_files, mesh_counts, bounding_box = export_meshes(output_dir)
+    run_infos, graph_files, all_good = [], [], True
+    for run_name in runs:
+        run_info, graph, graph_file = export_run(run_name, output_dir)
+        print(f"--- {run_info['label']} ---")
+        all_good &= check_export(output_dir, graph, mesh_counts)
+        print(f"  edges exported (r > {config.EXPORT_EDGE_MIN_R}): {run_info['edges_exported']:,}, "
+              f"of which in the {config.GRAPH_DENSITY:.0%} graph: {run_info['edges_in_graph']:,}\n")
+        run_infos.append(run_info)
+        graph_files.append(graph_file)
+
+    comparison_files, comparison_summary = export_comparison(runs, output_dir)
+    if comparison_summary:
+        print(f"Comparison exported: {' vs '.join(comparison_summary['run_labels'])}, "
+              f"agreement r = {comparison_summary['matrix_correlation']:.3f}")
+
+    subject = {
+        "subject_id": config.SUBJECT_ID,
+        "hcp_id": config.get_hcp_id(),
+        "default_run": run_infos[0]["label"],
+        "atlas": config.ATLAS_NAME,
+        "surface": "midthickness_MSMAll",
+        "coordinate_space": "MNINonLinear (mm)",
+        "bounding_box_mm": bounding_box,
+        "counts": {"regions": len(graph["nodes"]), "mesh": mesh_counts},
+        "runs": run_infos,
+        "comparison": comparison_summary,
+        "files": mesh_files + graph_files + comparison_files,
     }
     subject_file = write_json(subject, output_dir / "subject.json")
-
-    all_good = check_export(output_dir, graph, mesh_counts)
-    print(f"  edges exported (r > {config.EXPORT_EDGE_MIN_R}): {n_edges:,}, "
-          f"of which in the {config.GRAPH_DENSITY:.0%} graph: {n_graph_edges:,}")
 
     print(f"\nFiles in {output_dir.relative_to(config.REPO_DIR)}:")
     total_bytes = 0

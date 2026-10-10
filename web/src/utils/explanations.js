@@ -30,6 +30,39 @@ export const GLOSSARY = {
   hub:
     'A hub is a region that many of the shortest routes between other regions pass through, like a busy ' +
     'train interchange. Measured by "betweenness".',
+  reproducibility:
+    'The same brain was scanned twice, on two different days. This number is how much the two scans ' +
+    'agree: the correlation between every connection strength in scan 1 and the same connection in ' +
+    'scan 2. Higher means the measurement is stable rather than noise. 1 = identical, 0 = unrelated.',
+}
+
+// One-line meaning of the between-scan agreement.
+// Input: r between the two scans' connectivity matrices. Output: sentence.
+export function describeReproducibility(agreement) {
+  if (agreement >= 0.7) return 'The two scans agree strongly, so this connection pattern is a stable feature of this brain.'
+  if (agreement >= 0.5) return 'The two scans agree moderately: the broad pattern repeats, but details vary between days.'
+  return 'The two scans agree only weakly, so treat individual connections with caution.'
+}
+
+// Plain sentence about how stable one region is between the two scans.
+// Inputs: stability { strength, rank, rank_change, consistency } for the region (from
+//         comparison.json), runLabels ["REST1", "REST2"], regionTotal.
+// Output: sentence.
+export function describeStability(stability, runLabels, regionTotal) {
+  const [first, second] = runLabels
+  const moved = Math.abs(stability.rank_change)
+  const direction = stability.rank_change > 0 ? 'up' : 'down'
+  const movement = moved === 0
+    ? `It held the same rank (#${stability.rank[first]} of ${regionTotal}) in both scans`
+    : `It moved ${direction} ${moved} place${moved === 1 ? '' : 's'} in the ranking ` +
+      `(#${stability.rank[first]} in ${first}, #${stability.rank[second]} in ${second})`
+  if (stability.consistency === 'most consistent') {
+    return `One of the most consistent regions between scans. ${movement}.`
+  }
+  if (stability.consistency === 'least consistent') {
+    return `One of the least consistent regions between scans. ${movement}.`
+  }
+  return `About as consistent as most regions between scans. ${movement}.`
 }
 
 // Each statistic: an everyday label (with the technical name for researchers) and a

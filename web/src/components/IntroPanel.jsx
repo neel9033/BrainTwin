@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import { SECONDS_PER_TIMEPOINT } from '../utils/explanations.js'
 
 // Welcome card explaining what the picture shows, in plain language.
-// Inputs: subject (from subject.json), networkColors, onClose().
+// Inputs: runInfo (the scan on screen, from subject.json), networkColors, onClose().
 // Output: a dialog over the 3D view.
-export default function IntroPanel({ subject, networkColors, onClose }) {
+export default function IntroPanel({ runInfo, networkColors, onClose }) {
   const startButtonRef = useRef(null)
-  const scanMinutes = Math.round((subject.counts.timepoints * SECONDS_PER_TIMEPOINT) / 60)
+  const scanMinutes = Math.round((runInfo.timepoints * SECONDS_PER_TIMEPOINT) / 60)
   const sampleColors = Object.values(networkColors)
 
   // Put keyboard focus on the main button, and let Esc close the card
@@ -37,7 +37,8 @@ export default function IntroPanel({ subject, networkColors, onClose }) {
         <p className="intro-lead">
           This is one real person's brain, scanned by the{' '}
           <strong>Human Connectome Project</strong> while they lay still and rested for about{' '}
-          {scanMinutes} minutes.
+          {scanMinutes} minutes. They were scanned twice, on two different days. Switch between the two scans
+          with the <strong>REST1 / REST2</strong> buttons to see how well they agree.
         </p>
 
         <ul className="intro-list">

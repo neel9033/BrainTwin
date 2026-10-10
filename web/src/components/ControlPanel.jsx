@@ -1,22 +1,31 @@
 import CollapsibleSection from './CollapsibleSection.jsx'
 import InfoTip from './InfoTip.jsx'
+import ReproducibilityScatter from './ReproducibilityScatter.jsx'
 import {
   GLOSSARY, NETWORK_DESCRIPTIONS, SECONDS_PER_TIMEPOINT, describeModularity, describeMotion,
+  describeReproducibility,
 } from '../utils/explanations.js'
 
-// Left panel: what this is, display switches, the connection-strength slider, and the
-// network legend - all in everyday language.
-// Inputs: subject, networks, settings + updateSetting(name, value), hiddenNetworks,
-//         toggleNetwork(id), setAllNetworksVisible(bool), regionCounts (network -> count),
-//         shownEdgeCount, graphThreshold (weakest r in the top-10% set), onOpenIntro().
+// Left panel: what this is, which scan is shown, how well the two scans agree,
+// display switches, the connection-strength slider, and the network legend -
+// all in everyday language.
+// Inputs: subject, runInfo (scan on screen), runLabels + runLabel + onRunChange(label),
+//         comparison ({ summary, pairValues } or null), selectedId, nodesById, networks,
+//         settings + updateSetting(name, value), hiddenNetworks, toggleNetwork(id),
+//         setAllNetworksVisible(bool), regionCounts (network -> count), shownEdgeCount,
+//         graphThreshold (weakest r in the top-10% set), onOpenIntro().
 // Output: an <aside> element.
 export default function ControlPanel({
-  subject, networks, settings, updateSetting, hiddenNetworks, toggleNetwork, setAllNetworksVisible,
+  subject, runInfo, runLabels, runLabel, onRunChange, comparison, selectedId, nodesById, networks,
+  settings, updateSetting, hiddenNetworks, toggleNetwork, setAllNetworksVisible,
   regionCounts, shownEdgeCount, graphThreshold, onOpenIntro,
 }) {
-  const motion = subject.qc.mean_relative_motion_mm
-  const modularity = subject.graph_summary.modularity_schaefer_networks
-  const scanMinutes = Math.round((subject.counts.timepoints * SECONDS_PER_TIMEPOINT) / 60)
+  const motion = runInfo.qc.mean_relative_motion_mm
+  const modularity = runInfo.graph_summary.modularity_schaefer_networks
+  const scanMinutes = Math.round((runInfo.timepoints * SECONDS_PER_TIMEPOINT) / 60)
+  const scanNumber = runLabels.indexOf(runLabel) + 1
+  const agreement = comparison?.summary.matrix_correlation
+  const nodesInOrder = [...nodesById.values()].sort((first, second) => first.id - second.id)
 
   return (
     <aside className="panel control-panel">
@@ -33,6 +42,29 @@ export default function ControlPanel({
           Human Connectome Project · subject {subject.hcp_id} · {scanMinutes}-minute resting scan
         </p>
 
+        {runLabels.length > 1 && (
+          <div className="run-switcher">
+            <div className="segmented" role="group" aria-label="Which scan to show">
+              {runLabels.map((label) => (
+                <button key={label} type="button" aria-pressed={label === runLabel}
+                  className={label === runLabel ? 'is-on' : ''} onClick={() => onRunChange(label)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="muted small">Day {scanNumber} of {runLabels.length}</span>
+          </div>
+        )}
+
+        {agreement != null && (
+          <p className="caption small">
+            <span className="caption-term">
+              Reproducibility {agreement.toFixed(2)}
+              <InfoTip label="reproducibility" text={GLOSSARY.reproducibility} />
+            </span>{' '}
+            {describeReproducibility(agreement)}
+          </p>
+        )}
         <p className="caption small">
           <span className="caption-term">
             Modularity {modularity.toFixed(2)}
@@ -48,6 +80,53 @@ export default function ControlPanel({
           The person kept {describeMotion(motion)}.
         </p>
       </header>
+
+      {comparison && (
+        <CollapsibleSection title="Same brain, two scans">
+          <p className="small">
+            Each dot is one connection between two regions. Dots near the diagonal line mean the two scans
+            agree.
+          </p>
+          <ReproducibilityScatter
+            pairValues={comparison.pairValues}
+            nodes={nodesInOrder}
+            networkNames={Object.fromEntries(networks.map((network) => [network.id, network.name]))}
+            runLabels={comparison.summary.run_labels}
+            selectedId={selectedId}
+          />
+          <table className="compare-table small">
+            <thead>
+              <tr>
+                <th scope="col" />
+                {comparison.summary.run_labels.map((label) => (
+                  <th scope="col" key={label} className={label === runLabel ? 'is-current' : ''}>{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Head movement (mm)</th>
+                {comparison.summary.run_labels.map((label) => (
+                  <td key={label} className="number">{comparison.summary.head_motion_mm[label].toFixed(3)}</td>
+                ))}
+              </tr>
+              <tr>
+                <th scope="row">Modularity</th>
+                {comparison.summary.run_labels.map((label) => (
+                  <td key={label} className="number">{comparison.summary.modularity[label].toFixed(2)}</td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+          <p className="muted small">
+            {Math.round(comparison.summary.top10_edge_overlap * 100)}% of the strongest connections appear in
+            both scans. Each region's total link strength agrees at r ={' '}
+            {comparison.summary.strength_correlation.toFixed(2)} (
+            {comparison.summary.strength_correlation_all_positive.toFixed(2)} when every positive connection is
+            counted, not just the strongest).
+          </p>
+        </CollapsibleSection>
+      )}
 
       <CollapsibleSection title="Brain surface">
         <label className="switch-row">

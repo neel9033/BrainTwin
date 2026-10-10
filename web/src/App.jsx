@@ -53,10 +53,10 @@ function computeRanks(nodes) {
   return ranks
 }
 
-// Look-up tables built once from the loaded data.
-// Input: data from loadSubject. Output: object of maps/numbers used across the app.
-function buildLookups(data) {
-  const { nodes, edges, networks } = data.graph
+// Look-up tables built from one scan's graph (rebuilt when you switch scans).
+// Input: graph from graph_<RUN>.json. Output: object of maps/numbers used across the app.
+function buildLookups(graph) {
+  const { nodes, edges, networks } = graph
   const regionCounts = {}
   nodes.forEach((node) => {
     regionCounts[node.network] = (regionCounts[node.network] || 0) + 1
@@ -86,6 +86,7 @@ export default function App() {
   const [viewRequest, setViewRequest] = useState(null) // { name, id } for the camera presets
   const [loadProgress, setLoadProgress] = useState({ fraction: 0, label: 'Starting' })
   const [sceneReady, setSceneReady] = useState(false) // true once the 3D view has drawn a frame
+  const [chosenRun, setChosenRun] = useState(null) // e.g. "REST2"; null = the default scan
 
   useEffect(() => {
     loadSubject(SUBJECT_ID, setLoadProgress).then(setData).catch((error) => setLoadError(error.message))
@@ -116,22 +117,27 @@ export default function App() {
     return () => clearTimeout(timer)
   }, [notice])
 
-  const lookups = useMemo(() => (data ? buildLookups(data) : null), [data])
+  // Which scan is on screen, and its graph. Everything below is rebuilt from it.
+  const runLabel = chosenRun ?? data?.subject.default_run
+  const run = data ? data.runs[runLabel] : null
+  const graph = run?.graph
+
+  const lookups = useMemo(() => (graph ? buildLookups(graph) : null), [graph])
 
   const visibleNodes = useMemo(
-    () => (data ? data.graph.nodes.filter((node) => !hiddenNetworks.has(node.network)) : []),
-    [data, hiddenNetworks],
+    () => (graph ? graph.nodes.filter((node) => !hiddenNetworks.has(node.network)) : []),
+    [graph, hiddenNetworks],
   )
 
   // Edges to draw: above the slider value and both ends in a visible network.
   // (When a region is selected, the network layer fades the ones that don't touch it.)
   const visibleEdges = useMemo(() => {
-    if (!data) return []
+    if (!graph) return []
     const visibleIds = new Set(visibleNodes.map((node) => node.id))
-    return data.graph.edges.filter(
+    return graph.edges.filter(
       (edge) => edge.weight >= settings.edgeThreshold && visibleIds.has(edge.source) && visibleIds.has(edge.target),
     )
-  }, [data, visibleNodes, settings.edgeThreshold])
+  }, [graph, visibleNodes, settings.edgeThreshold])
 
   // The selected region's own visible connections
   const selectedEdges = useMemo(
@@ -169,7 +175,7 @@ export default function App() {
 
   // Show (true) or hide (false) every network at once
   function setAllNetworksVisible(visible) {
-    setHiddenNetworks(visible ? new Set() : new Set(data.graph.networks.map((network) => network.id)))
+    setHiddenNetworks(visible ? new Set() : new Set(graph.networks.map((network) => network.id)))
   }
 
   // Move the camera to a preset view (a new id each time, so pressing the same view again still works)
@@ -232,7 +238,14 @@ export default function App() {
 
       <ControlPanel
         subject={data.subject}
-        networks={data.graph.networks}
+        runInfo={run.info}
+        runLabels={data.subject.runs.map((info) => info.label)}
+        runLabel={runLabel}
+        onRunChange={setChosenRun}
+        comparison={data.comparison}
+        selectedId={selectedId}
+        nodesById={lookups.nodesById}
+        networks={graph.networks}
         settings={settings}
         updateSetting={updateSetting}
         hiddenNetworks={hiddenNetworks}
@@ -251,7 +264,9 @@ export default function App() {
           networkNames={lookups.networkNames}
           networkColors={lookups.networkColors}
           ranks={lookups.ranks}
-          regionTotal={data.graph.nodes.length}
+          regionTotal={graph.nodes.length}
+          runLabel={runLabel}
+          comparison={data.comparison?.summary}
           graphThreshold={lookups.graphThreshold}
           onSelect={setSelectedId}
           onClose={() => setSelectedId(null)}
@@ -264,7 +279,7 @@ export default function App() {
 
       {showIntro && sceneReady && (
         <IntroPanel
-          subject={data.subject}
+          runInfo={run.info}
           networkColors={lookups.networkColors}
           onClose={() => {
             setShowIntro(false)
