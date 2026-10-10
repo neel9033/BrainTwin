@@ -9,3 +9,4 @@ dependencies:
   - networkx
   - scipy
   - matplotlib
+  - boto3

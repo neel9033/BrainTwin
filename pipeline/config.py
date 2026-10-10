@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Python inside the braintwin conda env (used in the error message below)
 BRAINTWIN_PYTHON = "/Users/neelrajan/anaconda3/envs/braintwin/bin/python"
-REQUIRED_PACKAGES = ["nibabel", "numpy", "pandas", "networkx", "scipy", "matplotlib"]
+REQUIRED_PACKAGES = ["nibabel", "numpy", "pandas", "networkx", "scipy", "matplotlib", "boto3"]
 
 
 def check_python_environment():
@@ -65,6 +65,24 @@ RUNS_TO_COMPARE = ["rfMRI_REST1_LR", "rfMRI_REST2_LR"]
 
 # HCP-Young Adult resting-state repetition time (seconds between fMRI frames)
 TR_SECONDS = 0.72
+
+# Which preprocessed fMRI file to use: <run>_<FMRI_FILE_ENDING>. This is the
+# HCP_1200 sICA+FIX-cleaned version, which every subject has on HCP's S3 bucket.
+# (The 2025 "_hp2000_clean_rclean_tclean" files are not on S3, so they can't be
+# fetched automatically; all subjects use this version for identical preprocessing.)
+FMRI_FILE_ENDING = "Atlas_MSMAll_hp2000_clean.dtseries.nii"
+
+# ---------------------------------------------------------------------------
+# HCP Amazon S3 access (step 0)
+# ---------------------------------------------------------------------------
+
+# Credentials file in the repo root (gitignored), two lines:
+#   HCP_ACCESS_KEY=...
+#   HCP_SECRET_KEY=...
+HCP_CREDENTIALS_FILE = REPO_DIR / ".hcp_credentials"
+HCP_S3_BUCKET = "hcp-openaccess"
+HCP_S3_PREFIX = "HCP_1200"  # paths inside it mirror the local layout: <hcp_id>/MNINonLinear/...
+HCP_S3_REGION = "us-east-1"
 
 # Graph measures use only the strongest connections: this fraction of all
 # possible region pairs (0.10 = 10% -> 1,990 of 19,900 pairs for 200 regions)
@@ -135,15 +153,24 @@ def get_raw_paths(subject_id=SUBJECT_ID, run_name=RUN_NAME, surface="midthicknes
             surface ("midthickness", "pial", or "inflated").
     Output: dict of name -> Path.
     """
-    hcp_id = get_hcp_id(subject_id)
-    subject_dir = RAW_DATA_DIR / hcp_id / "MNINonLinear"
+    return get_raw_paths_for_hcp_id(get_hcp_id(subject_id), run_name, surface)
+
+
+def get_raw_paths_for_hcp_id(hcp_id, run_name=RUN_NAME, surface="midthickness", raw_dir=RAW_DATA_DIR):
+    """
+    Same as get_raw_paths, but by HCP id - for subjects not yet in subjects.csv
+    (e.g. while downloading them in step 0).
+    Inputs: hcp_id like "125525", run_name, surface, raw_dir (folder holding <hcp_id>/).
+    Output: dict of name -> Path.
+    """
+    subject_dir = Path(raw_dir) / hcp_id / "MNINonLinear"
     surface_dir = subject_dir / "fsaverage_LR32k"
     run_dir = subject_dir / "Results" / run_name
 
     return {
         "mesh_L": surface_dir / f"{hcp_id}.L.{surface}_MSMAll.32k_fs_LR.surf.gii",
         "mesh_R": surface_dir / f"{hcp_id}.R.{surface}_MSMAll.32k_fs_LR.surf.gii",
-        "fmri": run_dir / f"{run_name}_Atlas_MSMAll_hp2000_clean_rclean_tclean.dtseries.nii",
+        "fmri": run_dir / f"{run_name}_{FMRI_FILE_ENDING}",
         "motion": run_dir / "Movement_RelativeRMS_mean.txt",
     }
 
