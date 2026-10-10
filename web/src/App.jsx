@@ -4,6 +4,7 @@ import { STATS } from './utils/regions.js'
 import BrainScene from './components/BrainScene.jsx'
 import ControlPanel from './components/ControlPanel.jsx'
 import SidePanel from './components/SidePanel.jsx'
+import ViewBar from './components/ViewBar.jsx'
 
 const SUBJECT_ID = 'subject_001'
 
@@ -57,6 +58,8 @@ export default function App() {
   const [hiddenNetworks, setHiddenNetworks] = useState(() => new Set())
   const [selectedId, setSelectedId] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [autoRotate, setAutoRotate] = useState(true)
+  const [viewRequest, setViewRequest] = useState(null) // { name, id } for the camera presets
 
   useEffect(() => {
     loadSubject(SUBJECT_ID).then(setData).catch((error) => setLoadError(error.message))
@@ -70,6 +73,15 @@ export default function App() {
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [])
+
+  // Auto-rotate stops on any user interaction: a click or touch anywhere, scrolling, or a key
+  useEffect(() => {
+    if (!autoRotate) return undefined
+    const stop = () => setAutoRotate(false)
+    const events = ['pointerdown', 'wheel', 'keydown']
+    events.forEach((name) => window.addEventListener(name, stop))
+    return () => events.forEach((name) => window.removeEventListener(name, stop))
+  }, [autoRotate])
 
   // Hide the "medial wall" notice after a few seconds
   useEffect(() => {
@@ -85,31 +97,34 @@ export default function App() {
     [data, hiddenNetworks],
   )
 
-  // Edges to draw: above the slider value, both ends visible, and - if a region is
-  // selected - only that region's connections.
+  // Edges to draw: above the slider value and both ends in a visible network.
+  // (When a region is selected, the network layer fades the ones that don't touch it.)
   const visibleEdges = useMemo(() => {
     if (!data) return []
     const visibleIds = new Set(visibleNodes.map((node) => node.id))
     return data.graph.edges.filter(
-      (edge) =>
-        edge.weight >= settings.edgeThreshold &&
-        visibleIds.has(edge.source) &&
-        visibleIds.has(edge.target) &&
-        (selectedId == null || edge.source === selectedId || edge.target === selectedId),
+      (edge) => edge.weight >= settings.edgeThreshold && visibleIds.has(edge.source) && visibleIds.has(edge.target),
     )
-  }, [data, visibleNodes, settings.edgeThreshold, selectedId])
+  }, [data, visibleNodes, settings.edgeThreshold])
+
+  // The selected region's own visible connections
+  const selectedEdges = useMemo(
+    () =>
+      selectedId == null
+        ? []
+        : visibleEdges.filter((edge) => edge.source === selectedId || edge.target === selectedId),
+    [visibleEdges, selectedId],
+  )
 
   // The selected region plus every partner it has a visible line to
   const highlightedIds = useMemo(() => {
     const ids = new Set(selectedId != null ? [selectedId] : [])
-    if (selectedId != null) {
-      visibleEdges.forEach((edge) => {
-        ids.add(edge.source)
-        ids.add(edge.target)
-      })
-    }
+    selectedEdges.forEach((edge) => {
+      ids.add(edge.source)
+      ids.add(edge.target)
+    })
     return ids
-  }, [visibleEdges, selectedId])
+  }, [selectedEdges, selectedId])
 
   // Update one view setting by name
   function updateSetting(name, value) {
@@ -129,6 +144,11 @@ export default function App() {
   // Show (true) or hide (false) every network at once
   function setAllNetworksVisible(visible) {
     setHiddenNetworks(visible ? new Set() : new Set(data.graph.networks.map((network) => network.id)))
+  }
+
+  // Move the camera to a preset view (a new id each time, so pressing the same view again still works)
+  function showView(name) {
+    setViewRequest({ name, id: Date.now() })
   }
 
   // A click on the surface: region 0 is the medial wall, which has no region
@@ -166,6 +186,7 @@ export default function App() {
           data={data}
           nodesById={lookups.nodesById}
           networkColors={lookups.networkColors}
+          networkNames={lookups.networkNames}
           settings={settings}
           hiddenNetworks={hiddenNetworks}
           visibleNodes={visibleNodes}
@@ -174,8 +195,13 @@ export default function App() {
           highlightedIds={highlightedIds}
           onSelect={setSelectedId}
           onSurfaceClick={handleSurfaceClick}
+          viewRequest={viewRequest}
+          autoRotate={autoRotate}
+          onUserInteract={() => setAutoRotate(false)}
         />
       </div>
+
+      <ViewBar onView={showView} autoRotate={autoRotate} onToggleAutoRotate={() => setAutoRotate((on) => !on)} />
 
       <ControlPanel
         subject={data.subject}
@@ -186,7 +212,7 @@ export default function App() {
         toggleNetwork={toggleNetwork}
         setAllNetworksVisible={setAllNetworksVisible}
         regionCounts={lookups.regionCounts}
-        shownEdgeCount={visibleEdges.length}
+        shownEdgeCount={selectedId != null ? selectedEdges.length : visibleEdges.length}
         graphThreshold={lookups.graphThreshold}
       />
 

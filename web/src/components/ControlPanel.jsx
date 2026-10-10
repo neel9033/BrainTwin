@@ -108,8 +108,8 @@ export default function ControlPanel({
       </section>
 
       <footer className="muted small help">
-        Drag to rotate · scroll to zoom · right-drag to pan · click a node or the surface to inspect a
-        region · Esc to clear
+        Drag to rotate · scroll to zoom · right-drag to pan · preset views at the bottom · click a node or
+        the surface to inspect a region · Esc to clear
       </footer>
     </aside>
   )

@@ -131,12 +131,32 @@ select {
 
 /* ---------- overlays ---------- */
 .hover-label {
-  transform: translateY(-22px);
-  background: rgba(20, 21, 23, 0.9); border: 1px solid var(--panel-border); color: var(--text);
-  font-size: 12px; padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+  transform: translateY(-50%) translateY(-14px); /* sit just above the node */
+  display: flex; flex-direction: column; gap: 1px;
+  background: rgba(20, 21, 23, 0.92); border: 1px solid var(--panel-border); color: var(--text);
+  padding: 5px 9px; border-radius: 7px; white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
+.hover-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.hover-detail { font-size: 11px; color: var(--text-muted); }
+
+.view-bar {
+  /* centered in the space between the left panel (280px) and the right panel (340px) */
+  position: absolute; bottom: var(--gutter); left: calc(50% - 30px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 9px;
+  backdrop-filter: blur(8px);
+}
+.view-bar button {
+  background: none; border: none; border-radius: 6px; padding: 5px 10px;
+  font-size: 13px; color: var(--text-muted); cursor: pointer;
+}
+.view-bar button:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.view-bar button.is-on { color: var(--accent); background: rgba(127, 178, 240, 0.12); }
+.view-bar-divider { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--panel-border); }
+
 .notice {
-  position: absolute; bottom: var(--gutter); left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: calc(var(--gutter) + 52px); left: 50%; transform: translateX(-50%);
   background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px;
   padding: 8px 14px; font-size: 13px;
 }
@@ -154,4 +174,10 @@ select {
     max-height: 45%;
   }
   .side-panel { z-index: 2; }
+  .view-bar {
+    top: var(--gutter); bottom: auto; left: 50%;
+    max-width: calc(100% - 2 * var(--gutter)); overflow-x: auto;
+  }
+  .view-bar button { padding: 5px 8px; }
+  .notice { bottom: auto; top: calc(var(--gutter) + 52px); }
 }
