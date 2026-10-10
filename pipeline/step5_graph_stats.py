@@ -7,13 +7,14 @@ correlation, positive values only (config.GRAPH_DENSITY, default 10%).
 Edge weight = Pearson r. The full unthresholded matrix stays in
 connectivity.npy for the website export.
 
-Reads:  data/derived/<subject>/connectivity.npy and regions.csv (steps 2-3),
+Reads:  data/derived/<subject>/<run>/connectivity.npy and regions.csv (steps 2-3),
         head-motion file (raw) for QC.
-Writes: data/derived/<subject>/region_stats.csv   one row per region
-        data/derived/<subject>/graph_edges.csv    the kept (thresholded) edges
-        data/derived/<subject>/graph_summary.json whole-brain numbers + QC
+Writes: data/derived/<subject>/<run>/region_stats.csv   one row per region
+        data/derived/<subject>/<run>/graph_edges.csv    the kept (thresholded) edges
+        data/derived/<subject>/<run>/graph_summary.json whole-brain numbers + QC
 
-Run:    python pipeline/step5_graph_stats.py
+Run:    python pipeline/step5_graph_stats.py                    (default run)
+        python pipeline/step5_graph_stats.py --run rfMRI_REST2_LR (another run)
 """
 
 import config  # first: stops early with a clear message if the wrong Python is used
@@ -103,10 +104,10 @@ def region_measures(graph, regions):
     return region_stats
 
 
-def whole_brain_summary(graph, region_stats, edges, mean_motion_mm):
+def whole_brain_summary(graph, region_stats, edges, mean_motion_mm, run_name):
     """
     Compute whole-brain graph numbers and the left-vs-right comparison.
-    Inputs: graph, region_stats table, kept edges, mean head motion (mm).
+    Inputs: graph, region_stats table, kept edges, mean head motion (mm), run_name.
     Output: dict ready to save as JSON.
     """
     communities = [
@@ -133,7 +134,7 @@ def whole_brain_summary(graph, region_stats, edges, mean_motion_mm):
     return {
         "subject_id": config.SUBJECT_ID,
         "hcp_id": config.get_hcp_id(),
-        "run_name": config.RUN_NAME,
+        "run_name": run_name,
         "threshold": {
             "method": "keep strongest positive correlations (proportional threshold)",
             "density_requested": config.GRAPH_DENSITY,
@@ -175,15 +176,16 @@ def main():
     Threshold the connectivity matrix, build the graph, compute all measures,
     print the checkpoint tables, and save everything.
     """
-    output_dir = config.get_derived_dir()
+    run_name = config.get_run_name()
+    output_dir = config.get_derived_dir(run_name=run_name)
     correlation = np.load(output_dir / "connectivity.npy")
     regions = pd.read_csv(output_dir / "regions.csv")
-    mean_motion_mm = float(np.loadtxt(config.get_raw_paths()["motion"]))
+    mean_motion_mm = float(np.loadtxt(config.get_raw_paths(run_name=run_name)["motion"]))
 
     edges = threshold_strongest(correlation, config.GRAPH_DENSITY)
     graph = build_graph(regions, edges)
     region_stats = region_measures(graph, regions)
-    summary = whole_brain_summary(graph, region_stats, edges, mean_motion_mm)
+    summary = whole_brain_summary(graph, region_stats, edges, mean_motion_mm, run_name)
 
     threshold = summary["threshold"]
     print(f"Graph: {summary['n_nodes']} nodes, {threshold['edges_kept']} edges "

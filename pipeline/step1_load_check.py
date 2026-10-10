@@ -3,15 +3,19 @@ Step 1 - Load every input file and print sanity checks.
 
 Reads:  both midthickness meshes, the resting-state fMRI, the Schaefer atlas,
         and the head-motion summary.
-Writes: data/derived/<subject>/load_check.json (the numbers printed below).
+Writes: data/derived/<subject>/<run>/load_check.json (the numbers printed below).
 
-Run:    python pipeline/step1_load_check.py
+Run:    python pipeline/step1_load_check.py                    (default run, full check)
+        python pipeline/step1_load_check.py --run rfMRI_REST2_LR --files-only
+                                       (another run: files exist + fMRI header matches)
 """
 
 import json
+import sys
 
 import config  # first: stops early with a clear message if the wrong Python is used
 
+import nibabel as nib
 import numpy as np
 
 from brain_io import get_cortex_columns, load_atlas, load_fmri, load_mesh, parse_region_name
@@ -165,16 +169,58 @@ def check_motion(raw_paths):
     return mean_motion_mm
 
 
+def check_files_only(raw_paths, run_name):
+    """
+    Quick check for an extra run: the files exist, and the fMRI header has the
+    same layout as the default run (reads only the header, not the 400 MB of data).
+    Inputs: raw_paths for the run, run_name. Output: dict of results.
+    """
+    print("\n=== fMRI header (data not loaded) ===")
+    fmri_header = nib.load(str(raw_paths["fmri"])).header
+    series_axis, brain_model_axis = fmri_header.get_axis(0), fmri_header.get_axis(1)
+    results = {"n_timepoints": len(series_axis), "n_grayordinates": len(brain_model_axis)}
+    print(f"  shape (timepoints x grayordinates): {len(series_axis):,} x {len(brain_model_axis):,}")
+
+    reference_paths = config.get_raw_paths(run_name=config.RUN_NAME)
+    reference_axis = nib.load(str(reference_paths["fmri"])).header.get_axis(1)
+    for hemisphere in ("L", "R"):
+        _columns, vertices = get_cortex_columns(brain_model_axis, hemisphere)
+        _columns, reference_vertices = get_cortex_columns(reference_axis, hemisphere)
+        same = np.array_equal(vertices, reference_vertices)
+        print(f"  cortex {hemisphere}: {len(vertices):,} vertices; same vertices as {config.RUN_NAME}: {same}")
+        results[f"cortex_{hemisphere}_same_as_default_run"] = bool(same)
+    return results
+
+
 def main():
     """
-    Run every check for the configured subject and run, print the results,
-    and save them to load_check.json.
+    Run every check for the chosen subject and run, print the results,
+    and save them to load_check.json. With --files-only, just check that the
+    run's files exist and its fMRI header matches the default run.
     """
-    raw_paths = config.get_raw_paths()
-    print(f"Subject: {config.SUBJECT_ID} (HCP {config.get_hcp_id()}), run: {config.RUN_NAME}")
+    run_name = config.get_run_name()
+    files_only = "--files-only" in sys.argv
+    raw_paths = config.get_raw_paths(run_name=run_name)
+    print(f"Subject: {config.SUBJECT_ID} (HCP {config.get_hcp_id()}), run: {run_name}")
     for name, path in raw_paths.items():
         print(f"  {name:7s} {'OK     ' if path.exists() else 'MISSING'} {path}")
     print(f"  atlas   {'OK     ' if config.ATLAS_DLABEL.exists() else 'MISSING'} {config.ATLAS_DLABEL}")
+    if not all(path.exists() for path in raw_paths.values()):
+        sys.exit("Some files are missing - see MISSING above.")
+
+    if files_only:
+        summary = {
+            "subject_id": config.SUBJECT_ID,
+            "hcp_id": config.get_hcp_id(),
+            "run_name": run_name,
+            "files_only": True,
+            "fmri_header": check_files_only(raw_paths, run_name),
+            "mean_relative_motion_mm": check_motion(raw_paths),
+        }
+        output_path = config.get_derived_dir(run_name=run_name) / "load_check.json"
+        output_path.write_text(json.dumps(summary, indent=2))
+        print(f"\nSaved {output_path.relative_to(config.REPO_DIR)}")
+        return
 
     mesh_results = check_meshes(raw_paths)
     fmri_results, brain_model_axis = check_fmri(raw_paths)
@@ -193,14 +239,14 @@ def main():
     summary = {
         "subject_id": config.SUBJECT_ID,
         "hcp_id": config.get_hcp_id(),
-        "run_name": config.RUN_NAME,
+        "run_name": run_name,
         "meshes": mesh_results,
         "fmri": fmri_results,
         "atlas": atlas_results,
         "matching": match_results,
         "mean_relative_motion_mm": mean_motion_mm,
     }
-    output_path = config.get_derived_dir() / "load_check.json"
+    output_path = config.get_derived_dir(run_name=run_name) / "load_check.json"
     output_path.write_text(json.dumps(summary, indent=2))
     print(f"\nSaved {output_path.relative_to(config.REPO_DIR)}")
 

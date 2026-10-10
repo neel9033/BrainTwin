@@ -5,6 +5,7 @@ Every step imports its paths from here, so the raw-data location, subject,
 and fMRI run only need to change in one place.
 """
 
+import argparse
 import importlib.util
 import sys
 from pathlib import Path
@@ -56,7 +57,11 @@ SUBJECTS_CSV = DATA_DIR / "subjects.csv"
 # ---------------------------------------------------------------------------
 
 SUBJECT_ID = "subject_001"
+# Default run. Any step can be pointed at another run with --run, e.g.
+#   python pipeline/step2_parcellate.py --run rfMRI_REST2_LR
 RUN_NAME = "rfMRI_REST1_LR"  # other options: rfMRI_REST1_RL, rfMRI_REST2_LR, rfMRI_REST2_RL
+# The two scans compared in step 7 (same person, resting state, two different days)
+RUNS_TO_COMPARE = ["rfMRI_REST1_LR", "rfMRI_REST2_LR"]
 
 # HCP-Young Adult resting-state repetition time (seconds between fMRI frames)
 TR_SECONDS = 0.72
@@ -143,11 +148,35 @@ def get_raw_paths(subject_id=SUBJECT_ID, run_name=RUN_NAME, surface="midthicknes
     }
 
 
-def get_derived_dir(subject_id=SUBJECT_ID):
+def get_run_name():
     """
-    Folder where pipeline steps save their outputs for one subject.
-    Input: subject_id. Output: Path (created if missing).
+    Read which fMRI run to process from the command line (--run), or use RUN_NAME.
+    Input: none (reads sys.argv). Output: run name string, e.g. "rfMRI_REST2_LR".
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--run", default=RUN_NAME)
+    arguments, _unused = parser.parse_known_args()
+    if not arguments.run.startswith("rfMRI_"):
+        raise ValueError(f"--run should look like rfMRI_REST2_LR, got {arguments.run!r}")
+    return arguments.run
+
+
+def get_subject_dir(subject_id=SUBJECT_ID):
+    """
+    Folder for outputs that don't depend on the fMRI run (node positions,
+    run comparisons). Input: subject_id. Output: Path (created if missing).
     """
     folder = DERIVED_DIR / subject_id
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def get_derived_dir(subject_id=SUBJECT_ID, run_name=RUN_NAME):
+    """
+    Folder where pipeline steps save their outputs for one subject and run:
+    data/derived/<subject>/<run_name>/. Inputs: subject_id, run_name.
+    Output: Path (created if missing).
+    """
+    folder = get_subject_dir(subject_id) / run_name
     folder.mkdir(parents=True, exist_ok=True)
     return folder

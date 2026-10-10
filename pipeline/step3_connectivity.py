@@ -1,13 +1,14 @@
 """
 Step 3 - Functional connectivity: correlation between every pair of regions.
 
-Reads:  data/derived/<subject>/region_timeseries.npy and regions.csv (from step 2).
-Writes: data/derived/<subject>/connectivity.npy          (200 x 200 Pearson r)
-        data/derived/<subject>/connectivity_fisher_z.npy (200 x 200 Fisher z, diagonal = 0)
-        data/derived/<subject>/connectivity_checks.json  (results of the checks below)
-        data/derived/<subject>/connectivity_heatmap.png  (matrix sorted by network)
+Reads:  data/derived/<subject>/<run>/region_timeseries.npy and regions.csv (from step 2).
+Writes: data/derived/<subject>/<run>/connectivity.npy          (200 x 200 Pearson r)
+        data/derived/<subject>/<run>/connectivity_fisher_z.npy (200 x 200 Fisher z, diagonal = 0)
+        data/derived/<subject>/<run>/connectivity_checks.json  (results of the checks below)
+        data/derived/<subject>/<run>/connectivity_heatmap.png  (matrix sorted by network)
 
-Run:    python pipeline/step3_connectivity.py
+Run:    python pipeline/step3_connectivity.py                    (default run)
+        python pipeline/step3_connectivity.py --run rfMRI_REST2_LR (another run)
 """
 
 import json
@@ -104,10 +105,11 @@ def network_sort_order(regions):
     return sort_table.sort_values(["network_rank", "hemisphere", "id"]).index.to_numpy()
 
 
-def plot_heatmap(correlation, regions, output_path):
+def plot_heatmap(correlation, regions, output_path, run_name=config.RUN_NAME):
     """
     Save a heatmap of the correlation matrix with regions grouped by network.
-    Inputs: correlation (regions x regions), regions table, output PNG path.
+    Inputs: correlation (regions x regions), regions table, output PNG path,
+            run_name (for the title).
     Output: none (writes the PNG). The diagonal is hidden since it is always 1.
     """
     order = network_sort_order(regions)
@@ -173,7 +175,7 @@ def plot_heatmap(correlation, regions, output_path):
 
     title_x = label_margin / figure_width
     figure.text(title_x, title_y, f"Functional connectivity — {config.SUBJECT_ID} (HCP {config.get_hcp_id()}), "
-                f"{config.RUN_NAME}", fontsize=12, color="#2b2b29", weight="bold")
+                f"{run_name}", fontsize=12, color="#2b2b29", weight="bold")
     figure.text(title_x, title_y - 0.3 / figure_height,
                 "200 Schaefer regions sorted by network (left then right hemisphere within each); "
                 "diagonal hidden", fontsize=8.5, color="#5f5f5b")
@@ -186,7 +188,8 @@ def main():
     Load step 2 outputs, compute both connectivity matrices, check them,
     and save matrices, checks, and heatmap.
     """
-    output_dir = config.get_derived_dir()
+    run_name = config.get_run_name()
+    output_dir = config.get_derived_dir(run_name=run_name)
     region_timeseries = np.load(output_dir / "region_timeseries.npy")
     regions = pd.read_csv(output_dir / "regions.csv")
     print(f"Loaded region_timeseries {region_timeseries.shape} and {len(regions)} regions\n")
@@ -200,7 +203,7 @@ def main():
     np.save(output_dir / "connectivity.npy", correlation)
     np.save(output_dir / "connectivity_fisher_z.npy", fisher_z)
     (output_dir / "connectivity_checks.json").write_text(json.dumps(checks, indent=2))
-    plot_heatmap(correlation, regions, output_dir / "connectivity_heatmap.png")
+    plot_heatmap(correlation, regions, output_dir / "connectivity_heatmap.png", run_name)
 
     for file_name in ["connectivity.npy", "connectivity_fisher_z.npy", "connectivity_checks.json",
                       "connectivity_heatmap.png"]:

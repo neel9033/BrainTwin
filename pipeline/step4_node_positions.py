@@ -7,10 +7,13 @@ node sits on the cortex (a centroid of a curved region can float in white
 matter or even land in a neighbouring region).
 
 Reads:  both midthickness meshes (raw) and the Schaefer atlas.
-        data/derived/<subject>/regions.csv (from step 2) for the region list.
+        data/derived/<subject>/<default run>/regions.csv (from step 2) for the region list.
 Writes: data/derived/<subject>/node_positions.csv
           id, hemisphere, vertex_index, x, y, z, centroid_x/y/z, snap_distance_mm
         data/derived/<subject>/node_positions.png (quick visual check)
+
+Node positions depend only on the mesh and atlas, not on the fMRI run, so they
+are saved once per subject (not per run) and shared by every run.
 
 vertex_index is the mesh vertex the node sits on. The pial / inflated meshes
 use the same vertex numbering, so a later view toggle can reuse it.
@@ -129,9 +132,9 @@ def main():
     Compute node positions for the configured subject, check them,
     and save the CSV and the picture.
     """
-    output_dir = config.get_derived_dir()
+    output_dir = config.get_subject_dir()
     raw_paths = config.get_raw_paths(surface="midthickness")
-    regions = pd.read_csv(output_dir / "regions.csv")
+    regions = pd.read_csv(config.get_derived_dir() / "regions.csv")
 
     brain_points = {hemisphere: load_mesh(raw_paths[f"mesh_{hemisphere}"])[0] for hemisphere in ("L", "R")}
     vertex_labels, _label_table = load_atlas(config.ATLAS_DLABEL, config.VERTICES_PER_HEMISPHERE)

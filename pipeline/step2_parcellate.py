@@ -2,13 +2,14 @@
 Step 2 - Average the fMRI signal inside each brain region.
 
 Reads:  the resting-state fMRI and the Schaefer atlas (paths from config).
-Writes: data/derived/<subject>/region_timeseries.npy  (timepoints x 200, float32)
-        data/derived/<subject>/regions.csv            (one row per region)
+Writes: data/derived/<subject>/<run>/region_timeseries.npy  (timepoints x 200, float32)
+        data/derived/<subject>/<run>/regions.csv            (one row per region)
 
 Column i of region_timeseries.npy is the region in row i of regions.csv
 (region ids 1..200 in order, so column i = region id i+1).
 
-Run:    python pipeline/step2_parcellate.py
+Run:    python pipeline/step2_parcellate.py                    (default run)
+        python pipeline/step2_parcellate.py --run rfMRI_REST2_LR (another run)
 """
 
 import config  # first: stops early with a clear message if the wrong Python is used
@@ -88,11 +89,12 @@ def build_region_table(label_table, vertex_counts, region_colors):
 
 def main():
     """
-    Parcellate the configured subject/run and save the region time series
+    Parcellate the chosen subject/run (--run) and save the region time series
     and region table. Prints a few checks along the way.
     """
-    raw_paths = config.get_raw_paths()
-    output_dir = config.get_derived_dir()
+    run_name = config.get_run_name()
+    raw_paths = config.get_raw_paths(run_name=run_name)
+    output_dir = config.get_derived_dir(run_name=run_name)
 
     print(f"Loading fMRI: {raw_paths['fmri'].name}")
     fmri_data, brain_model_axis, _series_axis = load_fmri(raw_paths["fmri"])
