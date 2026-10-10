@@ -1,0 +1,157 @@
+:root {
+  --background: #121315;
+  --panel: rgba(28, 29, 32, 0.92);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --text: #ecebe7;
+  --text-muted: #9c9a94;
+  --accent: #7fb2f0;
+  --bar-track: rgba(255, 255, 255, 0.08);
+  --bar-fill: #8f8d87;
+  --radius: 10px;
+  --gutter: 16px;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--background);
+  color: var(--text);
+  font: 14px/1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p { margin: 0; }
+button { font: inherit; color: inherit; }
+
+.app { position: relative; height: 100%; overflow: hidden; }
+.scene { position: absolute; inset: 0; }
+
+/* ---------- panels ---------- */
+.panel {
+  position: absolute;
+  top: var(--gutter);
+  max-height: calc(100% - 2 * var(--gutter));
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(8px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.control-panel { left: var(--gutter); width: 280px; }
+.side-panel { right: var(--gutter); width: 340px; }
+
+.panel-header h1 { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+.panel h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-muted); margin-bottom: 8px; }
+.panel h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); margin-bottom: 8px; }
+.panel section { display: flex; flex-direction: column; gap: 6px; }
+
+.muted { color: var(--text-muted); }
+.small { font-size: 12px; }
+.mono { font-family: var(--mono); font-size: 11px; }
+.value, .number { font-variant-numeric: tabular-nums; }
+.value { color: var(--text); font-weight: 600; }
+
+/* ---------- controls ---------- */
+.switch-row, .select-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.select-row { justify-content: space-between; }
+.slider-row { display: flex; flex-direction: column; gap: 4px; }
+.slider-note { margin-top: -2px; }
+input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+input[type='range'] { width: 100%; accent-color: var(--accent); }
+select {
+  background: rgba(255, 255, 255, 0.06); color: var(--text); border: 1px solid var(--panel-border);
+  border-radius: 6px; padding: 3px 6px; font: inherit;
+}
+:disabled { opacity: 0.45; cursor: default; }
+.link-button {
+  background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; text-align: left;
+}
+.link-button:hover:not(:disabled) { text-decoration: underline; }
+
+.section-title-row { display: flex; justify-content: space-between; align-items: baseline; }
+.section-title-row h2 { margin-bottom: 0; }
+
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.legend label { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+.legend label.is-hidden .legend-name, .legend label.is-hidden .swatch { opacity: 0.35; }
+.legend-name { flex: 1; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.help { border-top: 1px solid var(--panel-border); padding-top: 12px; }
+
+/* ---------- side panel ---------- */
+.side-header { display: flex; justify-content: space-between; gap: 12px; }
+.eyebrow { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.panel .region-title {
+  font-size: 20px; font-weight: 650; margin: 4px 0 2px; letter-spacing: -0.01em;
+  text-transform: none; color: var(--text);
+}
+.close-button {
+  background: none; border: none; font-size: 22px; line-height: 1; color: var(--text-muted);
+  cursor: pointer; padding: 0 2px; height: 24px;
+}
+.close-button:hover { color: var(--text); }
+
+.note {
+  background: rgba(127, 178, 240, 0.1); border: 1px solid rgba(127, 178, 240, 0.25);
+  border-radius: 6px; padding: 8px 10px;
+}
+
+.stats-table { width: 100%; border-collapse: collapse; }
+.stats-table th { text-align: left; font-weight: 500; padding: 5px 0; cursor: help; }
+.stats-table td { padding: 5px 0; }
+.stats-table .number { text-align: right; padding-right: 12px; }
+.rank-cell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.rank-cell .small { width: 34px; text-align: right; }
+.rank-bar, .connection-bar {
+  display: inline-block; height: 6px; border-radius: 3px; background: var(--bar-track); overflow: hidden;
+}
+.rank-bar { width: 70px; }
+.rank-bar > span, .connection-bar > span {
+  display: block; height: 100%; background: var(--bar-fill); border-radius: 3px;
+}
+
+.connection-list { list-style: none; margin: 0; padding: 0; }
+.connection-list button {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 5px 6px; margin: 0 -6px;
+  background: none; border: none; border-radius: 6px; cursor: pointer; text-align: left;
+}
+.connection-list button:hover { background: rgba(255, 255, 255, 0.06); }
+.connection-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection-bar { width: 60px; }
+.connection-list .number { width: 34px; text-align: right; }
+
+/* ---------- overlays ---------- */
+.hover-label {
+  transform: translateY(-22px);
+  background: rgba(20, 21, 23, 0.9); border: 1px solid var(--panel-border); color: var(--text);
+  font-size: 12px; padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+}
+.notice {
+  position: absolute; bottom: var(--gutter); left: 50%; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 8px;
+  padding: 8px 14px; font-size: 13px;
+}
+.status-screen {
+  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: var(--gutter); text-align: center;
+}
+.status-screen h1 { font-size: 18px; }
+.status-screen p { max-width: 520px; }
+
+/* ---------- narrow screens: panels stack at the bottom ---------- */
+@media (max-width: 760px) {
+  .control-panel, .side-panel {
+    top: auto; bottom: var(--gutter); left: var(--gutter); right: var(--gutter); width: auto;
+    max-height: 45%;
+  }
+  .side-panel { z-index: 2; }
+}
