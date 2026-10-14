@@ -12,10 +12,11 @@ Writes: data/derived/<subject>/run_comparison.json        all numbers below
         data/derived/<subject>/run_comparison_scatter.png  edge weights, run 1 vs run 2
         data/derived/<subject>/run_comparison_heatmaps.png the two matrices side by side
 
-        With --gsr: compares the <run>_gsr folders and adds "_gsr" to every file name above.
+        With global signal regression (the default) it compares the <run>_gsr folders and
+        adds "_gsr" to every file name above; --no-gsr compares the <run> folders.
 
 Run:    python pipeline/step7_compare_runs.py
-        python pipeline/step7_compare_runs.py --gsr
+        python pipeline/step7_compare_runs.py --no-gsr
 """
 
 import config  # first: stops early with a clear message if the wrong Python is used

@@ -63,7 +63,8 @@ preprocessing identical across subjects.
 
 Run each step from the project root with the `braintwin` environment active.
 Steps that depend on the scan take `--run` (default `rfMRI_REST1_LR`).
-Steps 2, 3, 5, 6 and 7 also take `--gsr` (global signal regression, see below).
+Global signal regression is on by default; steps 2, 3, 5, 6 and 7 take `--no-gsr` for the
+version without it (see below).
 
 | Step | What it does |
 |---|---|
@@ -77,14 +78,16 @@ Steps 2, 3, 5, 6 and 7 also take `--gsr` (global signal regression, see below).
 | `step6_export_web.py` | Write the files the website loads (run after step 7 so the site includes the comparison) |
 | `step8_compare_gsr.py` | Compare results without vs with global signal regression |
 
-### Global signal regression (optional)
+### Global signal regression (on by default)
 
 The brain-wide average signal (breathing, heart rate, arousal) lifts every region
-together and inflates every correlation. With `--gsr`, step 2 removes it from each
-region (fit `region = a + b × global signal`, keep the rest), and steps 3–7 read and
-write `<run>_gsr/` folders and `*_gsr` comparison files, so both versions sit side by
-side. `USE_GSR` in `pipeline/config.py` switches it on for every step. Step 8 compares
-the two versions once both have been run.
+together and inflates every correlation. Step 2 removes it from each region (fit
+`region = a + b × global signal`, keep the rest), and steps 3–7 read and write
+`<run>_gsr/` folders and `*_gsr` comparison files. With `--no-gsr` they use `<run>/`
+folders instead, so both versions can sit side by side; `USE_GSR` in
+`pipeline/config.py` sets the default. Step 8 compares the two versions once both
+have been run. For subject_001, GSR raised REST1-vs-REST2 agreement from 0.73 to 0.86
+and modularity from 0.40 to 0.48; about half of all connections become negative.
 
 ## Website
 

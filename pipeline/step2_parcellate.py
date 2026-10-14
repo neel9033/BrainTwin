@@ -4,15 +4,16 @@ Step 2 - Average the fMRI signal inside each brain region.
 Reads:  the resting-state fMRI and the Schaefer atlas (paths from config).
 Writes: data/derived/<subject>/<run>/region_timeseries.npy  (timepoints x 200, float32)
         data/derived/<subject>/<run>/regions.csv            (one row per region)
-        With --gsr: the same files in <run>_gsr/, with the global signal removed,
-        plus global_signal.npy (timepoints) and gsr_info.json (how much it explained).
+        With global signal regression (the default, config.USE_GSR) these go in
+        <run>_gsr/ instead, plus global_signal.npy (timepoints) and gsr_info.json
+        (how much it explained). With --no-gsr they go in <run>/.
 
 Column i of region_timeseries.npy is the region in row i of regions.csv
 (region ids 1..200 in order, so column i = region id i+1).
 
 Run:    python pipeline/step2_parcellate.py                    (default run)
         python pipeline/step2_parcellate.py --run rfMRI_REST2_LR (another run)
-        python pipeline/step2_parcellate.py --gsr                (global signal regression)
+        python pipeline/step2_parcellate.py --no-gsr             (keep the global signal)
 """
 
 import json

@@ -9,7 +9,7 @@ Writes: data/derived/<subject>/<run>/connectivity.npy          (200 x 200 Pearso
 
 Run:    python pipeline/step3_connectivity.py                    (default run)
         python pipeline/step3_connectivity.py --run rfMRI_REST2_LR (another run)
-        python pipeline/step3_connectivity.py --gsr                (reads/writes <run>_gsr/)
+        python pipeline/step3_connectivity.py --no-gsr             (version without GSR, in <run>/)
 """
 
 import json

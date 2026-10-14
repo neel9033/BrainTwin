@@ -30,6 +30,11 @@ export const GLOSSARY = {
   hub:
     'A hub is a region that many of the shortest routes between other regions pass through, like a busy ' +
     'train interchange. Measured by "betweenness".',
+  globalSignal:
+    'Breathing, heartbeat and alertness make the whole brain\'s signal rise and fall together, which ' +
+    'makes every pair of regions look connected. We removed that brain-wide average before measuring ' +
+    'connections, so they show which regions move together more than the brain as a whole. A negative ' +
+    'value means two regions tend to move in opposite directions relative to that average.',
   reproducibility:
     'The same brain was scanned twice, on two different days. This number is how much the two scans ' +
     'agree: the correlation between every connection strength in scan 1 and the same connection in ' +

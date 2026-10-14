@@ -4,11 +4,11 @@ same subject without and with it.
 
 The global signal is the brain-wide average fMRI signal. It carries breathing,
 heart-rate and arousal fluctuations that lift every region at once, which makes
-every correlation look stronger. GSR removes it (step 2 with --gsr). This step
+every correlation look stronger. GSR removes it (step 2; on by default). This step
 puts the two versions next to each other so we can decide which to use.
 
 Reads:  for each run in config.RUNS_TO_COMPARE, data/derived/<subject>/<run>/ and
-        <run>_gsr/ (steps 2, 3, 5 run once without and once with --gsr), plus
+        <run>_gsr/ (steps 2, 3, 5 run once with --no-gsr and once with GSR), plus
         run_comparison.json and run_comparison_gsr.json (step 7, both ways).
 Writes: data/derived/<subject>/gsr_comparison.json          all numbers printed below
         data/derived/<subject>/gsr_comparison_heatmaps.png   default run, without vs with GSR
@@ -37,17 +37,18 @@ VERSIONS = {False: "without GSR", True: "with GSR"}
 VERSION_COLORS = {False: "#2a78d6", True: "#eb6834"}
 
 
-def missing_input_message(path):
+def missing_input_message(path, gsr):
     """
     Explain which commands produce a missing input file.
-    Input: the missing Path. Output: message string.
+    Inputs: the missing Path, gsr (which version is missing). Output: message string.
     """
     python = config.BRAINTWIN_PYTHON
-    return (f"Missing {path.relative_to(config.REPO_DIR)}. Run the GSR version first:\n"
-            + "".join(f"  {python} pipeline/{step} --run {run} --gsr\n"
+    flag = "--gsr" if gsr else "--no-gsr"
+    return (f"Missing {path.relative_to(config.REPO_DIR)}. Run the {VERSIONS[gsr]} version first:\n"
+            + "".join(f"  {python} pipeline/{step} --run {run} {flag}\n"
                       for run in config.RUNS_TO_COMPARE
                       for step in ("step2_parcellate.py", "step3_connectivity.py", "step5_graph_stats.py"))
-            + f"  {python} pipeline/step7_compare_runs.py --gsr")
+            + f"  {python} pipeline/step7_compare_runs.py {flag}")
 
 
 def load_version(run_name, gsr):
@@ -59,7 +60,7 @@ def load_version(run_name, gsr):
     folder = config.get_derived_dir(run_name=run_name, gsr=gsr)
     summary_path = folder / "graph_summary.json"
     if not summary_path.exists():
-        sys.exit(missing_input_message(summary_path))
+        sys.exit(missing_input_message(summary_path, gsr))
     gsr_info_path = folder / "gsr_info.json"
     return {
         "connectivity": np.load(folder / "connectivity.npy"),
@@ -76,7 +77,7 @@ def load_reproducibility(gsr):
     """
     path = config.get_subject_dir() / f"run_comparison{config.get_variant_suffix(gsr)}.json"
     if not path.exists():
-        sys.exit(missing_input_message(path))
+        sys.exit(missing_input_message(path, gsr))
     return json.loads(path.read_text())
 
 

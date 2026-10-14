@@ -40,6 +40,12 @@ export default function ControlPanel({
         <p className="subtitle">One real person's brain, at rest</p>
         <p className="muted small">
           Human Connectome Project · subject {subject.hcp_id} · {scanMinutes}-minute resting scan
+          {subject.global_signal_regression && (
+            <>
+              {' · '}global signal removed
+              <InfoTip label="global signal removed" text={GLOSSARY.globalSignal} />
+            </>
+          )}
         </p>
 
         {runLabels.length > 1 && (

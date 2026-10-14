@@ -3,8 +3,9 @@ Step 6 - Write the files the website loads.
 
 Exports every run in config.RUNS_TO_COMPARE that has been processed (steps 2-5),
 plus the run comparison from step 7 if it exists. The default run comes first
-and is what the website shows on load. With --gsr it exports the global-signal-
-regressed version instead (<run>_gsr folders, *_gsr comparison files).
+and is what the website shows on load. By default it exports the global-signal-
+regressed version (<run>_gsr folders, *_gsr comparison files); --no-gsr exports
+the version without it.
 
 Reads:  raw midthickness meshes + Schaefer atlas;
         data/derived/<subject>/node_positions.csv (step 4, same for every run);
