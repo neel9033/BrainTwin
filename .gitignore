@@ -22,3 +22,6 @@ CLAUDE.md
 # Graphify: keep only the report in git
 graphify-out/*
 !graphify-out/GRAPH_REPORT.md
+
+# Graphify skill: local copy only (same as ~/.claude/skills/graphify)
+.claude/skills/
