@@ -135,6 +135,7 @@ def whole_brain_summary(graph, region_stats, edges, mean_motion_mm, run_name):
         "subject_id": config.SUBJECT_ID,
         "hcp_id": config.get_hcp_id(),
         "run_name": run_name,
+        "global_signal_regression": config.get_use_gsr(),
         "threshold": {
             "method": "keep strongest positive correlations (proportional threshold)",
             "density_requested": config.GRAPH_DENSITY,

@@ -4,13 +4,18 @@ Step 2 - Average the fMRI signal inside each brain region.
 Reads:  the resting-state fMRI and the Schaefer atlas (paths from config).
 Writes: data/derived/<subject>/<run>/region_timeseries.npy  (timepoints x 200, float32)
         data/derived/<subject>/<run>/regions.csv            (one row per region)
+        With --gsr: the same files in <run>_gsr/, with the global signal removed,
+        plus global_signal.npy (timepoints) and gsr_info.json (how much it explained).
 
 Column i of region_timeseries.npy is the region in row i of regions.csv
 (region ids 1..200 in order, so column i = region id i+1).
 
 Run:    python pipeline/step2_parcellate.py                    (default run)
         python pipeline/step2_parcellate.py --run rfMRI_REST2_LR (another run)
+        python pipeline/step2_parcellate.py --gsr                (global signal regression)
 """
+
+import json
 
 import config  # first: stops early with a clear message if the wrong Python is used
 
@@ -64,6 +69,29 @@ def parcellate(fmri_data, brain_model_axis, vertex_labels, region_ids):
     return region_timeseries, vertex_counts
 
 
+def regress_global_signal(fmri_data, region_timeseries):
+    """
+    Global signal regression: remove the brain-wide average signal from each region.
+    The global signal is the mean over all grayordinates (cortex + subcortex) at
+    each timepoint. For each region we fit  region = a + b * global_signal  and keep
+    what is left over. (Doing this on region averages gives exactly the same result
+    as doing it on every vertex and then averaging, because fitting is linear.)
+    Inputs: fmri_data (timepoints x grayordinates),
+            region_timeseries (timepoints x regions).
+    Output: (cleaned_timeseries float32 (timepoints x regions, each region now has mean 0),
+             global_signal float32 (timepoints,),
+             variance_explained float array (regions,): share of each region's
+             variance the global signal accounted for, 0..1)
+    """
+    global_signal = fmri_data.mean(axis=1, dtype=np.float64)
+    design = np.column_stack([np.ones_like(global_signal), global_signal])
+    region_values = region_timeseries.astype(np.float64)
+    coefficients, *_ = np.linalg.lstsq(design, region_values, rcond=None)
+    cleaned = region_values - design @ coefficients
+    variance_explained = 1 - cleaned.var(axis=0) / region_values.var(axis=0)
+    return cleaned.astype(np.float32), global_signal.astype(np.float32), variance_explained
+
+
 def build_region_table(label_table, vertex_counts, region_colors):
     """
     Make the regions.csv table.
@@ -93,8 +121,9 @@ def main():
     and region table. Prints a few checks along the way.
     """
     run_name = config.get_run_name()
+    use_gsr = config.get_use_gsr()
     raw_paths = config.get_raw_paths(run_name=run_name)
-    output_dir = config.get_derived_dir(run_name=run_name)
+    output_dir = config.get_derived_dir(run_name=run_name, gsr=use_gsr)
 
     print(f"Loading fMRI: {raw_paths['fmri'].name}")
     fmri_data, brain_model_axis, _series_axis = load_fmri(raw_paths["fmri"])
@@ -104,6 +133,29 @@ def main():
 
     region_timeseries, vertex_counts = parcellate(fmri_data, brain_model_axis, vertex_labels, region_ids)
     regions = build_region_table(label_table, vertex_counts, region_colors)
+
+    if use_gsr:
+        region_timeseries, global_signal, variance_explained = regress_global_signal(
+            fmri_data, region_timeseries)
+        gsr_info = {
+            "global_signal": "mean of all grayordinates (cortex + subcortex) per timepoint",
+            "regressors": ["constant", "global signal"],
+            "variance_explained_mean": float(variance_explained.mean()),
+            "variance_explained_min": float(variance_explained.min()),
+            "variance_explained_max": float(variance_explained.max()),
+            "variance_explained_by_network": {
+                network: float(variance_explained[(regions["network"] == network).to_numpy()].mean())
+                for network in config.NETWORK_ORDER
+            },
+        }
+        print("Global signal regression ON")
+        print(f"  global signal explained {gsr_info['variance_explained_mean']:.0%} of a region's "
+              f"signal on average (range {gsr_info['variance_explained_min']:.0%} to "
+              f"{gsr_info['variance_explained_max']:.0%})")
+        for network, share in gsr_info["variance_explained_by_network"].items():
+            print(f"    {network:12s} {share:.0%}")
+        np.save(output_dir / "global_signal.npy", global_signal)
+        (output_dir / "gsr_info.json").write_text(json.dumps(gsr_info, indent=2))
 
     # Checks
     counts = regions["vertex_count"]

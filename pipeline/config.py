@@ -63,6 +63,14 @@ RUN_NAME = "rfMRI_REST1_LR"  # other options: rfMRI_REST1_RL, rfMRI_REST2_LR, rf
 # The two scans compared in step 7 (same person, resting state, two different days)
 RUNS_TO_COMPARE = ["rfMRI_REST1_LR", "rfMRI_REST2_LR"]
 
+# Global signal regression (GSR, step 2). The brain-wide average signal
+# (breathing, heart rate, arousal) lifts every region together and inflates
+# every correlation; GSR removes it from each region before correlating.
+# Off by default; switch it on for any step with --gsr. GSR outputs go to
+# <run>_gsr folders next to the normal ones, so both versions are kept.
+USE_GSR = False
+GSR_SUFFIX = "_gsr"
+
 # HCP-Young Adult resting-state repetition time (seconds between fMRI frames)
 TR_SECONDS = 0.72
 
@@ -188,6 +196,28 @@ def get_run_name():
     return arguments.run
 
 
+def get_use_gsr():
+    """
+    Read whether global signal regression is on: the --gsr flag, or USE_GSR.
+    Input: none (reads sys.argv). Output: True or False.
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--gsr", action="store_true")
+    arguments, _unused = parser.parse_known_args()
+    return USE_GSR or arguments.gsr
+
+
+def get_variant_suffix(gsr=None):
+    """
+    Name ending that marks the processing version: "_gsr" with global signal
+    regression, "" without. Used for derived folders and comparison files.
+    Input: gsr (True/False, or None = read --gsr / USE_GSR). Output: string.
+    """
+    if gsr is None:
+        gsr = get_use_gsr()
+    return GSR_SUFFIX if gsr else ""
+
+
 def get_subject_dir(subject_id=SUBJECT_ID):
     """
     Folder for outputs that don't depend on the fMRI run (node positions,
@@ -198,12 +228,13 @@ def get_subject_dir(subject_id=SUBJECT_ID):
     return folder
 
 
-def get_derived_dir(subject_id=SUBJECT_ID, run_name=RUN_NAME):
+def get_derived_dir(subject_id=SUBJECT_ID, run_name=RUN_NAME, gsr=None):
     """
     Folder where pipeline steps save their outputs for one subject and run:
-    data/derived/<subject>/<run_name>/. Inputs: subject_id, run_name.
+    data/derived/<subject>/<run_name>/, or <run_name>_gsr/ with global signal
+    regression. Inputs: subject_id, run_name, gsr (None = read --gsr / USE_GSR).
     Output: Path (created if missing).
     """
-    folder = get_subject_dir(subject_id) / run_name
+    folder = get_subject_dir(subject_id) / f"{run_name}{get_variant_suffix(gsr)}"
     folder.mkdir(parents=True, exist_ok=True)
     return folder

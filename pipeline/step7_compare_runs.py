@@ -12,7 +12,10 @@ Writes: data/derived/<subject>/run_comparison.json        all numbers below
         data/derived/<subject>/run_comparison_scatter.png  edge weights, run 1 vs run 2
         data/derived/<subject>/run_comparison_heatmaps.png the two matrices side by side
 
+        With --gsr: compares the <run>_gsr folders and adds "_gsr" to every file name above.
+
 Run:    python pipeline/step7_compare_runs.py
+        python pipeline/step7_compare_runs.py --gsr
 """
 
 import config  # first: stops early with a clear message if the wrong Python is used
@@ -129,6 +132,7 @@ def compare(first, second, regions):
         "hcp_id": config.get_hcp_id(),
         "runs": [first["name"], second["name"]],
         "run_labels": names,
+        "global_signal_regression": config.get_use_gsr(),
         "matrix_correlation": matrix_r,
         "matrix_correlation_fisher_z": matrix_r_fisher,
         "agreement": label,
@@ -213,27 +217,28 @@ def plot_scatter(first, second, regions, comparison, output_path):
     plt.close(figure)
 
 
-def plot_heatmaps(first, second, regions, comparison, output_path):
+def plot_matrix_pair(matrices, titles, regions, suptitle, output_path):
     """
-    The two connectivity matrices side by side, same network ordering and
-    same color scale as step 3, so they can be compared block by block.
-    Inputs: two runs, regions, comparison dict, PNG path. Output: none (writes PNG).
+    Two connectivity matrices side by side, same network ordering and same
+    color scale as step 3, so they can be compared block by block.
+    Inputs: two 200 x 200 matrices (region-id order), two panel titles,
+            regions table, figure title, PNG path. Output: none (writes PNG).
     """
     order = network_sort_order(regions)
     sorted_networks = regions["network"].to_numpy()[order]
     boundaries = np.flatnonzero(sorted_networks[1:] != sorted_networks[:-1]) + 1
-    matrices = []
-    for run in (first, second):
-        matrix = run["connectivity"][np.ix_(order, order)].copy()
+    sorted_matrices = []
+    for matrix in matrices:
+        matrix = matrix[np.ix_(order, order)].copy()
         np.fill_diagonal(matrix, np.nan)
-        matrices.append(matrix)
-    color_limit = float(max(np.nanpercentile(np.abs(matrix), 99) for matrix in matrices))
+        sorted_matrices.append(matrix)
+    color_limit = float(max(np.nanpercentile(np.abs(matrix), 99) for matrix in sorted_matrices))
     colormap = LinearSegmentedColormap.from_list("blue_gray_red", DIVERGING_COLORS)
     colormap.set_bad("#f0efec")
 
     figure, axes_pair = plt.subplots(1, 2, figsize=(12, 6.0), dpi=150, gridspec_kw={"wspace": 0.04})
     figure.patch.set_facecolor("#fcfcfb")
-    for panel, (axes, matrix, name) in enumerate(zip(axes_pair, matrices, comparison["run_labels"])):
+    for panel, (axes, matrix, title) in enumerate(zip(axes_pair, sorted_matrices, titles)):
         image = axes.imshow(matrix, cmap=colormap, vmin=-color_limit, vmax=color_limit, interpolation="nearest")
         for position in boundaries:
             axes.axhline(position - 0.5, color="#fcfcfb", linewidth=1)
@@ -248,17 +253,27 @@ def plot_heatmaps(first, second, regions, comparison, output_path):
         axes.tick_params(length=0, colors="#2b2b29")
         for spine in axes.spines.values():
             spine.set_visible(False)
-        motion = comparison["head_motion_mm"][name]
-        axes.set_title(f"{name}  ·  head motion {motion:.3f} mm", fontsize=10, color="#2b2b29", loc="left")
+        axes.set_title(title, fontsize=10, color="#2b2b29", loc="left")
     colorbar = figure.colorbar(image, ax=axes_pair, fraction=0.025, pad=0.02)
     colorbar.set_label("Pearson r", fontsize=8, color="#2b2b29")
     colorbar.ax.tick_params(labelsize=7, colors="#5f5f5b")
     colorbar.outline.set_visible(False)
-    figure.suptitle(f"Same brain, two scans — {config.SUBJECT_ID}  ·  agreement r = "
-                    f"{comparison['matrix_correlation']:.2f}", fontsize=12, color="#2b2b29", weight="bold",
-                    x=0.06, y=0.97, ha="left")
+    figure.suptitle(suptitle, fontsize=12, color="#2b2b29", weight="bold", x=0.06, y=0.97, ha="left")
     figure.savefig(output_path, facecolor=figure.get_facecolor(), bbox_inches="tight")
     plt.close(figure)
+
+
+def plot_heatmaps(first, second, regions, comparison, output_path):
+    """
+    The two runs' connectivity matrices side by side (see plot_matrix_pair).
+    Inputs: two runs, regions, comparison dict, PNG path. Output: none (writes PNG).
+    """
+    titles = [f"{name}  ·  head motion {comparison['head_motion_mm'][name]:.3f} mm"
+              for name in comparison["run_labels"]]
+    gsr_note = "  ·  global signal removed" if comparison["global_signal_regression"] else ""
+    suptitle = (f"Same brain, two scans — {config.SUBJECT_ID}{gsr_note}  ·  agreement r = "
+                f"{comparison['matrix_correlation']:.2f}")
+    plot_matrix_pair([first["connectivity"], second["connectivity"]], titles, regions, suptitle, output_path)
 
 
 def print_summary(comparison):
@@ -317,13 +332,15 @@ def main():
     print_summary(comparison)
 
     output_dir = config.get_subject_dir()
-    (output_dir / "run_comparison.json").write_text(json.dumps(comparison, indent=2))
-    region_stability.to_csv(output_dir / "region_stability.csv", index=False, float_format="%.4f")
-    plot_scatter(first, second, regions, comparison, output_dir / "run_comparison_scatter.png")
-    plot_heatmaps(first, second, regions, comparison, output_dir / "run_comparison_heatmaps.png")
+    suffix = config.get_variant_suffix()
+    file_names = [f"run_comparison{suffix}.json", f"region_stability{suffix}.csv",
+                  f"run_comparison_scatter{suffix}.png", f"run_comparison_heatmaps{suffix}.png"]
+    (output_dir / file_names[0]).write_text(json.dumps(comparison, indent=2))
+    region_stability.to_csv(output_dir / file_names[1], index=False, float_format="%.4f")
+    plot_scatter(first, second, regions, comparison, output_dir / file_names[2])
+    plot_heatmaps(first, second, regions, comparison, output_dir / file_names[3])
     print()
-    for file_name in ["run_comparison.json", "region_stability.csv", "run_comparison_scatter.png",
-                      "run_comparison_heatmaps.png"]:
+    for file_name in file_names:
         print(f"Saved {(output_dir / file_name).relative_to(config.REPO_DIR)}")
 
 

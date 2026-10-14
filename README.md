@@ -63,6 +63,7 @@ preprocessing identical across subjects.
 
 Run each step from the project root with the `braintwin` environment active.
 Steps that depend on the scan take `--run` (default `rfMRI_REST1_LR`).
+Steps 2, 3, 5, 6 and 7 also take `--gsr` (global signal regression, see below).
 
 | Step | What it does |
 |---|---|
@@ -74,6 +75,16 @@ Steps that depend on the scan take `--run` (default `rfMRI_REST1_LR`).
 | `step5_graph_stats.py` | Graph measures per region and for the whole brain |
 | `step7_compare_runs.py` | Compare REST1 with REST2 (reproducibility) |
 | `step6_export_web.py` | Write the files the website loads (run after step 7 so the site includes the comparison) |
+| `step8_compare_gsr.py` | Compare results without vs with global signal regression |
+
+### Global signal regression (optional)
+
+The brain-wide average signal (breathing, heart rate, arousal) lifts every region
+together and inflates every correlation. With `--gsr`, step 2 removes it from each
+region (fit `region = a + b × global signal`, keep the rest), and steps 3–7 read and
+write `<run>_gsr/` folders and `*_gsr` comparison files, so both versions sit side by
+side. `USE_GSR` in `pipeline/config.py` switches it on for every step. Step 8 compares
+the two versions once both have been run.
 
 ## Website
 

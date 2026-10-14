@@ -9,6 +9,7 @@ Writes: data/derived/<subject>/<run>/connectivity.npy          (200 x 200 Pearso
 
 Run:    python pipeline/step3_connectivity.py                    (default run)
         python pipeline/step3_connectivity.py --run rfMRI_REST2_LR (another run)
+        python pipeline/step3_connectivity.py --gsr                (reads/writes <run>_gsr/)
 """
 
 import json
@@ -203,7 +204,8 @@ def main():
     np.save(output_dir / "connectivity.npy", correlation)
     np.save(output_dir / "connectivity_fisher_z.npy", fisher_z)
     (output_dir / "connectivity_checks.json").write_text(json.dumps(checks, indent=2))
-    plot_heatmap(correlation, regions, output_dir / "connectivity_heatmap.png", run_name)
+    title = f"{run_name}  ·  global signal removed" if config.get_use_gsr() else run_name
+    plot_heatmap(correlation, regions, output_dir / "connectivity_heatmap.png", title)
 
     for file_name in ["connectivity.npy", "connectivity_fisher_z.npy", "connectivity_checks.json",
                       "connectivity_heatmap.png"]:

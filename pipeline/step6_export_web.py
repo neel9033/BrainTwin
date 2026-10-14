@@ -3,7 +3,8 @@ Step 6 - Write the files the website loads.
 
 Exports every run in config.RUNS_TO_COMPARE that has been processed (steps 2-5),
 plus the run comparison from step 7 if it exists. The default run comes first
-and is what the website shows on load.
+and is what the website shows on load. With --gsr it exports the global-signal-
+regressed version instead (<run>_gsr folders, *_gsr comparison files).
 
 Reads:  raw midthickness meshes + Schaefer atlas;
         data/derived/<subject>/node_positions.csv (step 4, same for every run);
@@ -243,9 +244,10 @@ def export_comparison(runs, output_dir):
     Output: (comparison file info list, comparison summary for subject.json) or ([], None).
     """
     subject_dir = config.get_subject_dir()
-    comparison_path = subject_dir / "run_comparison.json"
+    suffix = config.get_variant_suffix()
+    comparison_path = subject_dir / f"run_comparison{suffix}.json"
     if not comparison_path.exists():
-        print("No run_comparison.json yet (run step 7) - exporting without the comparison.")
+        print(f"No {comparison_path.name} yet (run step 7) - exporting without the comparison.")
         return [], None
     comparison = json.loads(comparison_path.read_text())
     if not all(run_name in runs for run_name in comparison["runs"]):
@@ -253,7 +255,7 @@ def export_comparison(runs, output_dir):
         return [], None
 
     labels = comparison["run_labels"]
-    stability = pd.read_csv(subject_dir / "region_stability.csv")
+    stability = pd.read_csv(subject_dir / f"region_stability{suffix}.csv")
     regions = {
         int(row.id): {
             "strength": {label: round(float(getattr(row, f"strength_{label}")), 3) for label in labels},
@@ -331,6 +333,7 @@ def main():
         "subject_id": config.SUBJECT_ID,
         "hcp_id": config.get_hcp_id(),
         "default_run": run_infos[0]["label"],
+        "global_signal_regression": config.get_use_gsr(),
         "atlas": config.ATLAS_NAME,
         "surface": "midthickness_MSMAll",
         "coordinate_space": "MNINonLinear (mm)",
