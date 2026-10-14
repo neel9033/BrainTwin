@@ -18,3 +18,7 @@ dist/
 .DS_Store
 CLAUDE.md
 .hcp_credentials
+
+# Graphify: keep only the report in git
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
